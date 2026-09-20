@@ -15,6 +15,15 @@
     <ProjectReference Include="..\..\src\SpecTrace.Core\SpecTrace.Core.csproj" />
   </ItemGroup>
 
+  <!--
+    The offset-map and section-index tests run against the real corpus, not against
+    strings written for the test. Copied rather than read from the repository root so
+    the tests do not depend on where they are run from.
+  -->
+  <ItemGroup>
+    <None Include="..\..\corpus\rfc6902.txt" Link="corpus\rfc6902.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
