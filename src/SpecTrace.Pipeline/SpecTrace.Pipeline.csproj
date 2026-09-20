@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpecTrace.Core\SpecTrace.Core.csproj" />
+    <ProjectReference Include="..\SpecTrace.Llm\SpecTrace.Llm.csproj" />
+  </ItemGroup>
+
+</Project>
