@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>SpecTrace.Cli</RootNamespace>
+    <AssemblyName>spectrace</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpecTrace.Pipeline\SpecTrace.Pipeline.csproj" />
+  </ItemGroup>
+
+</Project>
