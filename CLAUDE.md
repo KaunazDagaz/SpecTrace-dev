@@ -60,8 +60,12 @@ Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corp
 ```
 
 `Build` and `Test` work today. `Run`, `Offline` and `Score` are not implemented yet — the CLI
-prints usage and exits non-zero on any argument. They land with their own tasks, and so does
-`corpus/rfc6902.txt`, which is not in the repository yet.
+prints usage and exits non-zero on any argument. They land with their own tasks.
+
+`corpus/rfc6902.txt` is in the repository as of SPEC-2. `.gitattributes` marks `corpus/**` as
+`-text` so git performs no end-of-line conversion on it: the file is LF on every platform, and
+the character offsets the offset map and section index are tested against are identical on
+Windows and on CI. Do not remove that rule, and do not re-save the corpus with CRLF.
 
 ---
 
