@@ -29,6 +29,20 @@ public sealed class LlmRateLimitException : LlmRetryableException
     }
 }
 
+public sealed class LlmQuotaExhaustedException : LlmException
+{
+    public LlmQuotaExhaustedException(string message, string quotaId, string? limit)
+        : base(message)
+    {
+        QuotaId = quotaId;
+        Limit = limit;
+    }
+
+    public string QuotaId { get; }
+
+    public string? Limit { get; }
+}
+
 public sealed class LlmTransientException : LlmRetryableException
 {
     public LlmTransientException(string message, TimeSpan? retryAfter)

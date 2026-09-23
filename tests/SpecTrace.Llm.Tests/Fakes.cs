@@ -70,6 +70,34 @@ internal sealed class OfflineHttpMessageHandler : HttpMessageHandler
         throw new HttpRequestException("No network: this handler refuses every request.");
 }
 
+internal sealed class ManualTimeProvider : TimeProvider
+{
+    private long _ticks;
+
+    public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+    public override long GetTimestamp() => _ticks;
+
+    public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(_ticks);
+
+    public void Advance(TimeSpan by) => _ticks += by.Ticks;
+}
+
+internal sealed class DelayRecorder
+{
+    public ManualTimeProvider Clock { get; } = new();
+
+    public List<TimeSpan> Delays { get; } = [];
+
+    public Task RecordAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        Delays.Add(delay);
+        Clock.Advance(delay);
+
+        return Task.CompletedTask;
+    }
+}
+
 internal sealed class TemporaryDirectory : IDisposable
 {
     public TemporaryDirectory()
