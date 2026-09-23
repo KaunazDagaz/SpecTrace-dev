@@ -60,7 +60,16 @@ Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corp
 ```
 
 `Build` and `Test` work today. `Run`, `Offline` and `Score` are not implemented yet — the CLI
-prints usage and exits non-zero on any argument. They land with their own tasks.
+prints usage and exits non-zero for them. They land with their own tasks.
+
+As of SPEC-3 one command exists ahead of `run`: `extract --document <path>`, which does
+extraction and verification only and writes `requirements.json`, `rejected-quotes.json` and
+`decisions.json` under `runs/{runId}/`. With `SPECTRACE_OFFLINE=1` it replays from `cache/`
+and needs no key. `dotnet test` includes that replay against the committed cache entry.
+
+A live call needs `GEMINI_API_KEY` in the environment — the Windows user environment or the
+shell, never a file in this repository, `.env` included. `tests/SpecTrace.Llm.Tests` holds one
+live check that skips itself when the key is absent, so CI stays keyless.
 
 `corpus/rfc6902.txt` is in the repository as of SPEC-2. `.gitattributes` marks `corpus/**` as
 `-text` so git performs no end-of-line conversion on it: the file is LF on every platform, and

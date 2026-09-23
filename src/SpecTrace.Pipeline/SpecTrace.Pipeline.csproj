@@ -5,4 +5,8 @@
     <ProjectReference Include="..\SpecTrace.Llm\SpecTrace.Llm.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Prompts\*.md" />
+  </ItemGroup>
+
 </Project>
