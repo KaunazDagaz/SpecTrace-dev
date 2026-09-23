@@ -72,6 +72,36 @@ internal sealed class ScratchDirectory : IDisposable
     }
 }
 
+internal static class Readings
+{
+    public static void AssertNoneDisappeared(
+        IReadOnlyList<CandidateRequirement> candidates,
+        VerificationOutcome outcome)
+    {
+        foreach (var candidate in candidates)
+        {
+            var quote = TextNormalizer.Normalize(candidate.Quote);
+
+            var inRegister = outcome.Register.Any(requirement =>
+                TextNormalizer.Normalize(requirement.Text) == quote
+                && requirement.Modality == candidate.Modality
+                && requirement.Testability == candidate.Testability);
+
+            var inRejected = outcome.Rejected.Any(rejected =>
+                rejected.Quote == candidate.Quote
+                && rejected.Modality == candidate.Modality
+                && rejected.Testability == candidate.Testability);
+
+            var inDecisions = outcome.Decisions.Any(decision => decision.Claims.Contains(candidate));
+
+            Assert.True(
+                inRegister || inRejected || inDecisions,
+                $"The {RunArtifacts.Spell(candidate.Modality)} reading of '{candidate.Quote}' is in neither "
+                + "the register, the rejected report nor the decision queue.");
+        }
+    }
+}
+
 internal static class ModelAnswer
 {
     public static string With(params (string Modality, string Quote, string Testability)[] entries) =>

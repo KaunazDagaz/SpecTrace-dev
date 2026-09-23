@@ -65,11 +65,105 @@ public sealed class QuoteVerifierTests
         Assert.Empty(outcome.Register);
         Assert.Empty(outcome.Rejected);
 
-        var item = Assert.Single(outcome.Decisions);
-        Assert.Equal(RepeatedQuote, item.Quote);
-        Assert.Equal(DecisionQueueItem.NoSingleSection, item.Section);
-        Assert.Null(item.Resolution);
-        Assert.StartsWith("DQ-rfc6902-", item.Id, StringComparison.Ordinal);
+        var decision = Assert.Single(outcome.Decisions);
+        Assert.Equal(QueuedDecision.QuoteFoundMoreThanOnce, decision.Reason);
+        Assert.Equal(Verification.Ambiguous, decision.Verification);
+        Assert.Equal(RepeatedQuote, decision.Item.Quote);
+        Assert.Equal(DecisionQueueItem.NoSingleSection, decision.Item.Section);
+        Assert.Null(decision.Item.Resolution);
+        Assert.StartsWith("DQ-rfc6902-", decision.Item.Id, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheSameQuoteClaimedWithTwoModalitiesGoesToAPersonWithBothReadingsInsteadOfKeepingTheFirst()
+    {
+        CandidateRequirement should = new(Modality.Should, RealQuote, Testability.Testable, null);
+        CandidateRequirement mustNot = new(Modality.MustNot, RealQuote, Testability.Testable, null);
+
+        var outcome = Corpus.Verifier().Verify([should, mustNot]);
+
+        Assert.Empty(outcome.Register);
+        Assert.Empty(outcome.Rejected);
+
+        var decision = Assert.Single(outcome.Decisions);
+        Assert.Equal(QueuedDecision.ConflictingReadings, decision.Reason);
+        Assert.Equal(Verification.Exact, decision.Verification);
+        Assert.Equal("4.1", decision.Item.Section);
+        Assert.Equal([should, mustNot], decision.Claims);
+        Assert.Contains("SHOULD", decision.Item.Question, StringComparison.Ordinal);
+        Assert.Contains("MUST_NOT", decision.Item.Question, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheSameQuoteClaimedWithTwoTestabilitiesIsAlsoLeftToAPerson()
+    {
+        var outcome = Corpus.Verifier().Verify(
+        [
+            new CandidateRequirement(Modality.Must, RealQuote, Testability.Testable, null),
+            new CandidateRequirement(Modality.Must, RealQuote, Testability.NeedsHumanDecision, "Depends on X."),
+        ]);
+
+        Assert.Empty(outcome.Register);
+        Assert.Equal(QueuedDecision.ConflictingReadings, Assert.Single(outcome.Decisions).Reason);
+    }
+
+    [Fact]
+    public async Task AConflictingQuoteIsWrittenToTheDecisionsFileWithEveryReading()
+    {
+        var outcome = Corpus.Verifier().Verify(
+        [
+            new CandidateRequirement(Modality.Should, RealQuote, Testability.Testable, null),
+            new CandidateRequirement(Modality.MustNot, RealQuote, Testability.Testable, null),
+        ]);
+
+        using var run = new ScratchDirectory();
+        await RunArtifacts.WriteAsync(outcome, run.Path, CancellationToken.None);
+
+        using var decisions = JsonDocument.Parse(await File.ReadAllTextAsync(
+            Path.Combine(run.Path, RunArtifacts.DecisionsFile), CancellationToken.None));
+        var entry = Assert.Single(decisions.RootElement.EnumerateArray().ToList());
+
+        Assert.Equal(QueuedDecision.ConflictingReadings, entry.GetProperty("reason").GetString());
+        Assert.Equal("exact", entry.GetProperty("verification").GetString());
+        Assert.Equal(
+            ["SHOULD", "MUST_NOT"],
+            entry.GetProperty("claims").EnumerateArray().Select(claim => claim.GetProperty("modality").GetString()));
+    }
+
+    [Fact]
+    public void EveryClaimedReadingEndsUpInTheRegisterTheRejectedReportOrTheDecisionQueue()
+    {
+        CandidateRequirement[] candidates =
+        [
+            new(Modality.Must, RealQuote, Testability.Testable, null),
+            new(Modality.Must, RealQuote, Testability.Testable, null),
+            new(Modality.Should, SecondRealQuote, Testability.Testable, null),
+            new(Modality.MustNot, SecondRealQuote, Testability.Testable, null),
+            new(Modality.Must, RepeatedQuote, Testability.Testable, null),
+            new(Modality.May, RepeatedQuote, Testability.Testable, null),
+            new(Modality.Must, "Not a sentence in RFC 6902.", Testability.Testable, null),
+        ];
+
+        Readings.AssertNoneDisappeared(candidates, Corpus.Verifier().Verify(candidates));
+    }
+
+    [Fact]
+    public void TheVerificationRateDividesQuotesLocatedExactlyOnceByEveryQuoteReturned()
+    {
+        var outcome = Corpus.Verifier().Verify(
+        [
+            new CandidateRequirement(Modality.Must, RealQuote, Testability.Testable, null),
+            new CandidateRequirement(Modality.Must, RealQuote, Testability.Testable, null),
+            new CandidateRequirement(Modality.Must, RepeatedQuote, Testability.Testable, null),
+            new CandidateRequirement(Modality.Must, "Not a sentence in RFC 6902.", Testability.Testable, null),
+        ]);
+
+        Assert.Equal(4, outcome.ClaimCount);
+        Assert.Equal(2, outcome.ExactClaimCount);
+        Assert.Equal(1, outcome.AmbiguousClaimCount);
+        Assert.Single(outcome.Rejected);
+        Assert.Single(outcome.Register);
+        Assert.Equal(0.5, outcome.VerificationRate);
     }
 
     [Fact]
