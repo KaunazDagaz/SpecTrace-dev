@@ -10,3 +10,5 @@
 # -text disables all end-of-line conversion: the bytes on disk are the bytes in
 # the object store, on every platform.
 corpus/** -text
+
+src/SpecTrace.Pipeline/Prompts/** -text

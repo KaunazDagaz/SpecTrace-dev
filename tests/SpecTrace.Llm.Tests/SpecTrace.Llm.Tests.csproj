@@ -12,13 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SpecTrace.Core\SpecTrace.Core.csproj" />
-    <ProjectReference Include="..\..\src\SpecTrace.Pipeline\SpecTrace.Pipeline.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\..\corpus\rfc6902.txt" Link="corpus\rfc6902.txt" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\cache\*.json" Link="cache\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="..\..\src\SpecTrace.Llm\SpecTrace.Llm.csproj" />
   </ItemGroup>
 
   <ItemGroup>

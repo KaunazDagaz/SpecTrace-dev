@@ -19,13 +19,16 @@ versions. `AGENTS.md` and `CLAUDE.md` here describe how to work in the code.
 
 ## Status
 
-Milestone M1 (vertical slice) is in progress. **What exists today is the scaffolding only:**
-the solution builds, the tests run, and CI runs both with no secrets configured.
+Milestone M1 (vertical slice) is in progress. What exists today:
 
-Not implemented yet, each with its own task: whitespace normalisation and the offset map, the
-section index, the LLM client with its cache, requirement extraction and verification, test
-case generation, the traceability matrix, and the offline end-to-end replay. The corpus
-document is not in the repository yet either.
+- the corpus (`corpus/rfc6902.txt`), the whitespace normalisation with its offset map, and the
+  section index;
+- the LLM client behind one interface, with its disk cache, rate limiting and backoff;
+- requirement extraction and fail-closed verification: every claimed quote is located in the
+  source or kept out of the register, and the recorded extraction replays offline in CI.
+
+Not implemented yet, each with its own task: test case generation, the traceability matrix,
+and the full offline end-to-end `run`.
 
 ## Prerequisites
 
@@ -39,9 +42,15 @@ Working today:
 
 ```
 dotnet build --warnaserror     # must stay at 0 warnings, 0 errors
-dotnet test                    # unit tests and the architecture invariant
-dotnet run --project src/SpecTrace.Cli
+dotnet test                    # unit tests, invariants, and the offline replay of the committed cache
+
+# extraction and verification only, replayed from cache/ — no key, no network
+SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- extract --document corpus/rfc6902.txt
 ```
+
+`extract` writes `requirements.json`, `rejected-quotes.json` and `decisions.json` under
+`runs/{runId}/`. Without `SPECTRACE_OFFLINE` it calls Gemini for any request not already in
+`cache/`, which needs `GEMINI_API_KEY` set in the environment.
 
 Documented for later, and currently not implemented — the CLI prints usage and exits with a
 non-zero status if you pass any of them:
@@ -59,15 +68,14 @@ src/SpecTrace.Core/        verifiable core: domain types, normalisation, spans, 
                            no network, no file I/O, no LLM dependency
 src/SpecTrace.Llm/         probabilistic edge: one client interface, cached and swappable
 src/SpecTrace.Pipeline/    orchestration of the two halves, prompt files
-src/SpecTrace.Cli/         thin entry point: run, score, export
+src/SpecTrace.Cli/         thin entry point: extract today; run, score, export later
 tests/SpecTrace.Core.Tests/       unit tests for the core
-tests/SpecTrace.Pipeline.Tests/   invariants, and later the offline end-to-end run
+tests/SpecTrace.Llm.Tests/        client, cache and backoff, all against fakes; one live check
+tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline replay of the committed cache
 cache/                     committed LLM response cache
 ```
 
-`src/SpecTrace.Llm` and `src/SpecTrace.Pipeline` currently contain no source files; each is
-filled by the task that needs it. `SpecTrace.Web` (the review UI) belongs to the next milestone
-and does not exist yet.
+`SpecTrace.Web` (the review UI) belongs to the next milestone and does not exist yet.
 
 `SpecTrace.Core` must never reference `SpecTrace.Llm`. A test in
 `tests/SpecTrace.Pipeline.Tests` asserts this against both the project file and the compiled
