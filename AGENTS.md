@@ -146,6 +146,14 @@ These run in CI against the committed cache. Do not merge with any of them red, 
 - Deterministic IDs come from content hashes, never from counters, timestamps, or GUIDs.
 - No `async void`. Cancellation tokens are threaded through every I/O path.
 - Tests name the behaviour being asserted, not the method under test.
+- No comments. Code, commit messages, and PR descriptions carry the reasoning; a file does not
+  need `//` or `///` beside it to say the same thing twice. This applies to every file an agent
+  writes or edits — source, tests, project files, `.gitattributes`, CI config, everything —
+  and to both new code and existing code touched in passing. The one exception is a comment a
+  tool generates and would regenerate identically (a `dotnet new` template, a `.sln` header);
+  never add one yourself and never leave one an agent added previously — including ones you find
+  already in the repository. Choose names and structure that make the code self-explanatory
+  instead.
 
 ---
 
