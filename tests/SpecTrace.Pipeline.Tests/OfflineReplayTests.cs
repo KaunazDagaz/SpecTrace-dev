@@ -63,8 +63,44 @@ public sealed class OfflineReplayTests
 
         Assert.All(outcome.Register, requirement => Assert.Equal(Verification.Exact, requirement.Verification));
         Assert.True(
-            outcome.Register.Count + outcome.Rejected.Count + outcome.Decisions.Count <= result.CandidateCount,
+            outcome.Register.Count + outcome.Rejected.Count + outcome.Decisions.Count <= result.Candidates.Count,
             "More outcomes than claims: something was invented between the model and the register.");
+    }
+
+    [Fact]
+    public async Task NoClaimedReadingOfTheRecordedRunDisappearsWithoutTrace()
+    {
+        var (result, _) = await ReplayAsync();
+
+        Readings.AssertNoneDisappeared(result.Candidates, result.Outcome);
+    }
+
+    [Fact]
+    public async Task TheSectionFiveSentenceWithTwoObligationsGoesToAPersonWithBothReadings()
+    {
+        var (result, _) = await ReplayAsync();
+
+        var decision = Assert.Single(
+            result.Outcome.Decisions,
+            decision => decision.Item.Quote.StartsWith("If a normative requirement is violated", StringComparison.Ordinal));
+
+        Assert.Equal(QueuedDecision.ConflictingReadings, decision.Reason);
+        Assert.Equal("5", decision.Item.Section);
+        Assert.Contains(decision.Claims, claim => claim.Modality == Modality.Should);
+        Assert.Contains(decision.Claims, claim => claim.Modality == Modality.MustNot);
+    }
+
+    [Fact]
+    public async Task TheVerificationRateOfTheRecordedRunCountsEveryQuoteReturned()
+    {
+        var (result, _) = await ReplayAsync();
+        var outcome = result.Outcome;
+
+        Assert.Equal(18, outcome.ClaimCount);
+        Assert.Equal(14, outcome.ExactClaimCount);
+        Assert.Equal(4, outcome.AmbiguousClaimCount);
+        Assert.Empty(outcome.Rejected);
+        Assert.Equal(14.0 / 18.0, outcome.VerificationRate);
     }
 
     [Fact]

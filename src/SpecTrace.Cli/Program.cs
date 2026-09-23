@@ -104,13 +104,16 @@ internal static class Program
         Console.WriteLine($"response       {(result.Response.FromCache ? "from cache" : "from provider")}");
         Console.WriteLine($"tokens         {result.Response.InputTokens} in, {result.Response.OutputTokens} out");
         Console.WriteLine();
-        Console.WriteLine($"claimed        {result.CandidateCount}");
-        Console.WriteLine($"verified       {outcome.Register.Count}");
-        Console.WriteLine($"rejected       {outcome.Rejected.Count}");
-        Console.WriteLine($"ambiguous      {outcome.Decisions.Count}");
+        Console.WriteLine($"quotes         {outcome.ClaimCount} returned by the model");
+        Console.WriteLine($"located        {outcome.ExactClaimCount} exactly once");
+        Console.WriteLine($"ambiguous      {outcome.AmbiguousClaimCount} found more than once");
+        Console.WriteLine($"not found      {outcome.Rejected.Count}");
         Console.WriteLine(
             $"verification   {outcome.VerificationRate.ToString("P1", CultureInfo.InvariantCulture)} "
-            + "of distinct claims located exactly");
+            + "of returned quotes located exactly once");
+        Console.WriteLine();
+        Console.WriteLine($"register       {outcome.Register.Count} requirements");
+        Console.WriteLine($"decisions      {outcome.Decisions.Count} for a person");
         Console.WriteLine();
         Console.WriteLine($"written to     {outputDirectory}");
 

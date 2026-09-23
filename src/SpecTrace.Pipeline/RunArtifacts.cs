@@ -61,6 +61,14 @@ public static class RunArtifacts
         _ => throw new ArgumentOutOfRangeException(nameof(testability), testability, null),
     };
 
+    public static string Spell(Verification verification) => verification switch
+    {
+        Verification.Exact => "exact",
+        Verification.Ambiguous => "ambiguous",
+        Verification.Failed => "failed",
+        _ => throw new ArgumentOutOfRangeException(nameof(verification), verification, null),
+    };
+
     private static async Task WriteFileAsync<T>(string path, T value, CancellationToken cancellationToken)
     {
         await using var stream = File.Create(path);
@@ -113,16 +121,33 @@ public static class RunArtifacts
         [property: JsonPropertyName("id")] string Id,
         [property: JsonPropertyName("quote")] string Quote,
         [property: JsonPropertyName("section")] string Section,
-        [property: JsonPropertyName("question")] string Question,
+        [property: JsonPropertyName("reason")] string Reason,
         [property: JsonPropertyName("verification")] string Verification,
+        [property: JsonPropertyName("question")] string Question,
+        [property: JsonPropertyName("claims")] IReadOnlyList<ClaimJson> Claims,
         [property: JsonPropertyName("resolution")] string? Resolution)
     {
-        public static DecisionJson From(DecisionQueueItem item) => new(
-            item.Id,
-            item.Quote,
-            item.Section,
-            item.Question,
-            "ambiguous",
-            item.Resolution);
+        public static DecisionJson From(QueuedDecision decision) => new(
+            decision.Item.Id,
+            decision.Item.Quote,
+            decision.Item.Section,
+            decision.Reason,
+            Spell(decision.Verification),
+            decision.Item.Question,
+            decision.Claims.Select(ClaimJson.From).ToList(),
+            decision.Item.Resolution);
+    }
+
+    private sealed record ClaimJson(
+        [property: JsonPropertyName("modality")] string Modality,
+        [property: JsonPropertyName("testability")] string Testability,
+        [property: JsonPropertyName("testability_note")] string? TestabilityNote,
+        [property: JsonPropertyName("quote")] string Quote)
+    {
+        public static ClaimJson From(CandidateRequirement claim) => new(
+            Spell(claim.Modality),
+            Spell(claim.Testability),
+            claim.TestabilityNote,
+            claim.Quote);
     }
 }

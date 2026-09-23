@@ -33,7 +33,7 @@ public static class ExtractionRun
         return new ExtractionRunResult(
             RunIdFor(documentId, raw, model),
             documentId,
-            extraction.Candidates.Count,
+            extraction.Candidates,
             outcome,
             extraction.Response);
     }
@@ -50,6 +50,6 @@ public static class ExtractionRun
 public sealed record ExtractionRunResult(
     string RunId,
     string DocumentId,
-    int CandidateCount,
+    IReadOnlyList<CandidateRequirement> Candidates,
     VerificationOutcome Outcome,
     LlmResponse Response);
