@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SpecTrace.Core;
@@ -9,13 +10,19 @@ public static class RunArtifacts
     public const string RequirementsFile = "requirements.json";
     public const string RejectedQuotesFile = "rejected-quotes.json";
     public const string DecisionsFile = "decisions.json";
+    public const string TestCasesFile = "test-cases.json";
+    public const string MatrixFile = "matrix.json";
+    public const string MatrixHtmlFile = "matrix.html";
 
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
+        NewLine = "\n",
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
+
+    private static readonly UTF8Encoding Utf8WithoutMark = new(encoderShouldEmitUTF8Identifier: false);
 
     public static async Task WriteAsync(
         VerificationOutcome outcome,
@@ -27,19 +34,63 @@ public static class RunArtifacts
 
         Directory.CreateDirectory(directory);
 
-        await WriteFileAsync(
-            Path.Combine(directory, RequirementsFile),
-            outcome.Register.Select(RequirementJson.From).ToList(),
-            cancellationToken).ConfigureAwait(false);
+        await WriteVerificationAsync(outcome, outcome.Decisions, directory, cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task WriteRunAsync(
+        PipelineRunResult run,
+        string directory,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        Directory.CreateDirectory(directory);
+
+        await WriteVerificationAsync(run.Extraction.Outcome, run.DecisionQueue, directory, cancellationToken)
+            .ConfigureAwait(false);
 
         await WriteFileAsync(
-            Path.Combine(directory, RejectedQuotesFile),
-            outcome.Rejected.Select(RejectedQuoteJson.From).ToList(),
+            Path.Combine(directory, TestCasesFile),
+            run.Cases.Select(TestCaseJson.From).ToList(),
             cancellationToken).ConfigureAwait(false);
 
+        await WriteMatrixAsync(
+            run.DocumentId,
+            run.Register,
+            run.Cases,
+            run.HumanDecisions,
+            run.DecisionQueue,
+            directory,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task WriteMatrixAsync(
+        string documentId,
+        IReadOnlyList<Requirement> register,
+        IReadOnlyList<TestCase> cases,
+        IReadOnlyList<HumanCoverageDecision> humanDecisions,
+        IReadOnlyList<QueuedDecision> decisionQueue,
+        string directory,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentId);
+        ArgumentNullException.ThrowIfNull(decisionQueue);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        var matrix = TraceabilityMatrix.Build(register, cases, humanDecisions);
+
+        Directory.CreateDirectory(directory);
+
         await WriteFileAsync(
-            Path.Combine(directory, DecisionsFile),
-            outcome.Decisions.Select(DecisionJson.From).ToList(),
+            Path.Combine(directory, MatrixFile),
+            MatrixJson.From(documentId, matrix),
+            cancellationToken).ConfigureAwait(false);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(directory, MatrixHtmlFile),
+            MatrixHtml.Render(documentId, register, cases, matrix, decisionQueue),
+            Utf8WithoutMark,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -68,6 +119,54 @@ public static class RunArtifacts
         Verification.Failed => "failed",
         _ => throw new ArgumentOutOfRangeException(nameof(verification), verification, null),
     };
+
+    public static string Spell(CaseType type) => type switch
+    {
+        CaseType.Positive => "positive",
+        CaseType.Negative => "negative",
+        CaseType.Boundary => "boundary",
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+    };
+
+    public static string Spell(ReviewStatus status) => status switch
+    {
+        ReviewStatus.Proposed => "proposed",
+        ReviewStatus.Accepted => "accepted",
+        ReviewStatus.Edited => "edited",
+        ReviewStatus.Rejected => "rejected",
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
+    };
+
+    public static string Spell(CoverageStatus status) => status switch
+    {
+        CoverageStatus.Covered => "covered",
+        CoverageStatus.Gap => "gap",
+        CoverageStatus.DeferredByHuman => "deferred_by_human",
+        CoverageStatus.NotTestable => "not_testable",
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
+    };
+
+    private static async Task WriteVerificationAsync(
+        VerificationOutcome outcome,
+        IReadOnlyList<QueuedDecision> decisionQueue,
+        string directory,
+        CancellationToken cancellationToken)
+    {
+        await WriteFileAsync(
+            Path.Combine(directory, RequirementsFile),
+            outcome.Register.Select(RequirementJson.From).ToList(),
+            cancellationToken).ConfigureAwait(false);
+
+        await WriteFileAsync(
+            Path.Combine(directory, RejectedQuotesFile),
+            outcome.Rejected.Select(RejectedQuoteJson.From).ToList(),
+            cancellationToken).ConfigureAwait(false);
+
+        await WriteFileAsync(
+            Path.Combine(directory, DecisionsFile),
+            decisionQueue.Select(DecisionJson.From).ToList(),
+            cancellationToken).ConfigureAwait(false);
+    }
 
     private static async Task WriteFileAsync<T>(string path, T value, CancellationToken cancellationToken)
     {
@@ -123,7 +222,9 @@ public static class RunArtifacts
         [property: JsonPropertyName("section")] string Section,
         [property: JsonPropertyName("reason")] string Reason,
         [property: JsonPropertyName("verification")] string Verification,
+        [property: JsonPropertyName("requirement_id")] string? RequirementId,
         [property: JsonPropertyName("question")] string Question,
+        [property: JsonPropertyName("blocked_reason")] string? BlockedReason,
         [property: JsonPropertyName("claims")] IReadOnlyList<ClaimJson> Claims,
         [property: JsonPropertyName("resolution")] string? Resolution)
     {
@@ -133,7 +234,9 @@ public static class RunArtifacts
             decision.Item.Section,
             decision.Reason,
             Spell(decision.Verification),
+            decision.RequirementId,
             decision.Item.Question,
+            decision.BlockedReason,
             decision.Claims.Select(ClaimJson.From).ToList(),
             decision.Item.Resolution);
     }
@@ -149,5 +252,65 @@ public static class RunArtifacts
             Spell(claim.Testability),
             claim.TestabilityNote,
             claim.Quote);
+    }
+
+    private sealed record TestCaseJson(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("requirement_ids")] IReadOnlyList<string> RequirementIds,
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("type")] string Type,
+        [property: JsonPropertyName("precondition")] string Precondition,
+        [property: JsonPropertyName("input")] string Input,
+        [property: JsonPropertyName("expected_result")] string ExpectedResult,
+        [property: JsonPropertyName("status")] string Status,
+        [property: JsonPropertyName("review")] object? Review)
+    {
+        public static TestCaseJson From(TestCase testCase) => new(
+            testCase.Id,
+            testCase.RequirementIds,
+            testCase.Title,
+            Spell(testCase.Type),
+            testCase.Precondition,
+            testCase.Input,
+            testCase.ExpectedResult,
+            Spell(testCase.Status),
+            Review: null);
+    }
+
+    private sealed record MatrixJson(
+        [property: JsonPropertyName("document_id")] string DocumentId,
+        [property: JsonPropertyName("rows")] IReadOnlyList<MatrixRowJson> Rows,
+        [property: JsonPropertyName("orphans")] IReadOnlyList<OrphanJson> Orphans)
+    {
+        public static MatrixJson From(string documentId, TraceabilityMatrix matrix) => new(
+            documentId,
+            matrix.Rows.Select(MatrixRowJson.From).ToList(),
+            matrix.Orphans.Select(OrphanJson.From).ToList());
+    }
+
+    private sealed record MatrixRowJson(
+        [property: JsonPropertyName("requirement_id")] string RequirementId,
+        [property: JsonPropertyName("modality")] string Modality,
+        [property: JsonPropertyName("section")] string Section,
+        [property: JsonPropertyName("test_case_ids")] IReadOnlyList<string> TestCaseIds,
+        [property: JsonPropertyName("status")] string Status)
+    {
+        public static MatrixRowJson From(MatrixRow row) => new(
+            row.RequirementId,
+            Spell(row.Modality),
+            row.Section,
+            row.TestCaseIds,
+            Spell(row.Status));
+    }
+
+    private sealed record OrphanJson(
+        [property: JsonPropertyName("test_case_id")] string TestCaseId,
+        [property: JsonPropertyName("requirement_ids")] IReadOnlyList<string> RequirementIds,
+        [property: JsonPropertyName("missing_requirement_ids")] IReadOnlyList<string> MissingRequirementIds)
+    {
+        public static OrphanJson From(OrphanCase orphan) => new(
+            orphan.TestCaseId,
+            orphan.RequirementIds,
+            orphan.MissingRequirementIds);
     }
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using SpecTrace.Core;
 using SpecTrace.Llm;
 using SpecTrace.Pipeline;
 
@@ -23,24 +24,64 @@ internal static class Program
             return ExitSuccess;
         }
 
-        if (args[0] == "extract")
+        switch (args[0])
         {
-            return await ExtractAsync(args[1..]).ConfigureAwait(false);
-        }
+            case "extract":
+                return await ExtractAsync(args[1..]).ConfigureAwait(false);
 
-        Console.Error.WriteLine($"'{args[0]}' is not implemented yet.");
-        Console.Error.WriteLine();
-        WriteUsage(Console.Error);
-        return ExitUsage;
+            case "run":
+                return await RunAsync(args[1..]).ConfigureAwait(false);
+
+            default:
+                Console.Error.WriteLine($"'{args[0]}' is not implemented yet.");
+                Console.Error.WriteLine();
+                WriteUsage(Console.Error);
+                return ExitUsage;
+        }
     }
 
-    private static async Task<int> ExtractAsync(string[] args)
+    private static Task<int> ExtractAsync(string[] args) =>
+        ExecuteAsync("extract", args, async (documentPath, client, model, options, offline, cancellationToken) =>
+        {
+            var result = await ExtractionRun
+                .ExecuteAsync(documentPath, client, model, cancellationToken)
+                .ConfigureAwait(false);
+
+            var outputDirectory = options.GetValueOrDefault("--out", Path.Combine("runs", result.RunId));
+
+            await RunArtifacts
+                .WriteAsync(result.Outcome, outputDirectory, cancellationToken)
+                .ConfigureAwait(false);
+
+            WriteSummary(result, model, offline, outputDirectory);
+        });
+
+    private static Task<int> RunAsync(string[] args) =>
+        ExecuteAsync("run", args, async (documentPath, client, model, options, offline, cancellationToken) =>
+        {
+            var result = await PipelineRun
+                .ExecuteAsync(documentPath, client, model, cancellationToken)
+                .ConfigureAwait(false);
+
+            var outputDirectory = options.GetValueOrDefault("--out", Path.Combine("runs", result.RunId));
+
+            await RunArtifacts
+                .WriteRunAsync(result, outputDirectory, cancellationToken)
+                .ConfigureAwait(false);
+
+            WriteRunSummary(result, model, offline, outputDirectory);
+        });
+
+    private static async Task<int> ExecuteAsync(
+        string command,
+        string[] args,
+        Func<string, ILlmClient, string, Dictionary<string, string>, bool, CancellationToken, Task> body)
     {
         var options = ParseOptions(args);
 
         if (!options.TryGetValue("--document", out var documentPath))
         {
-            Console.Error.WriteLine("extract needs --document <path>.");
+            Console.Error.WriteLine($"{command} needs --document <path>.");
             return ExitUsage;
         }
 
@@ -65,17 +106,7 @@ internal static class Program
                 offline,
                 GeminiLlmClient.ApiKeyFromEnvironment());
 
-            var result = await ExtractionRun
-                .ExecuteAsync(documentPath, client, model, cancellation.Token)
-                .ConfigureAwait(false);
-
-            var outputDirectory = options.GetValueOrDefault("--out", Path.Combine("runs", result.RunId));
-
-            await RunArtifacts
-                .WriteAsync(result.Outcome, outputDirectory, cancellation.Token)
-                .ConfigureAwait(false);
-
-            WriteSummary(result, model, offline, outputDirectory);
+            await body(documentPath, client, model, options, offline, cancellation.Token).ConfigureAwait(false);
             return ExitSuccess;
         }
         catch (LlmException exception)
@@ -123,6 +154,60 @@ internal static class Program
             + "every requirement in the document was found.");
     }
 
+    private static void WriteRunSummary(
+        PipelineRunResult result,
+        string model,
+        bool offline,
+        string outputDirectory)
+    {
+        var outcome = result.Extraction.Outcome;
+        var generations = result.Generations;
+        var rows = result.Matrix.Rows;
+
+        Console.WriteLine($"document       {result.DocumentId}");
+        Console.WriteLine($"model          {model}");
+        Console.WriteLine($"mode           {(offline ? "offline" : "online")}");
+        Console.WriteLine(
+            $"extraction     {(result.Extraction.Response.FromCache ? "from cache" : "from provider")}, "
+            + $"{result.Extraction.Response.InputTokens} tokens in, {result.Extraction.Response.OutputTokens} out");
+        Console.WriteLine(
+            $"generation     {generations.Count} calls, {generations.Count(generation => generation.Response.FromCache)} from cache, "
+            + $"{generations.Sum(generation => generation.Response.InputTokens)} tokens in, "
+            + $"{generations.Sum(generation => generation.Response.OutputTokens)} out");
+        Console.WriteLine();
+        Console.WriteLine($"quotes         {outcome.ClaimCount} returned by the model, {outcome.ExactClaimCount} located exactly once, "
+            + $"{outcome.AmbiguousClaimCount} ambiguous, {outcome.Rejected.Count} not found");
+        Console.WriteLine($"register       {result.Register.Count} requirements");
+        Console.WriteLine($"covered        {rows.Count(row => row.Status == CoverageStatus.Covered)} by at least one proposed case");
+        Console.WriteLine($"gaps           {rows.Count(row => row.Status == CoverageStatus.Gap)}");
+        Console.WriteLine($"blocked        {generations.Count(generation => generation.BlockedReason is not null)} generations returned no case");
+        Console.WriteLine($"orphans        {result.Matrix.Orphans.Count}");
+        Console.WriteLine();
+        Console.WriteLine(
+            $"test cases     {result.Cases.Count}, of which "
+            + $"{result.Cases.Count(testCase => testCase.Status == ReviewStatus.Proposed)} not yet reviewed by a person");
+
+        foreach (var type in Enum.GetValues<CaseType>())
+        {
+            Console.WriteLine($"  {RunArtifacts.Spell(type),-12} {result.Cases.Count(testCase => testCase.Type == type)}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"decision queue {result.DecisionQueue.Count} items for a person");
+
+        foreach (var reason in result.DecisionQueue.GroupBy(decision => decision.Reason).OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            Console.WriteLine($"  {reason.Key,-44} {reason.Count()}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"written to     {outputDirectory}");
+        Console.WriteLine();
+        Console.WriteLine(
+            "Coverage is by proposed, unreviewed test cases. The matrix does not claim the specification "
+            + "is fully covered: it shows only whether each requirement in the register has a proposed case.");
+    }
+
     private static Dictionary<string, string> ParseOptions(string[] args)
     {
         var options = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -140,11 +225,12 @@ internal static class Program
         output.WriteLine("Usage: spectrace <command> [options]");
         output.WriteLine();
         output.WriteLine("Commands:");
+        output.WriteLine("  run     --document <path> [--model <id>] [--cache <dir>] [--out <dir>]");
+        output.WriteLine("          extract, verify, generate test cases, assemble the matrix and decision queue");
         output.WriteLine("  extract --document <path> [--model <id>] [--cache <dir>] [--out <dir>]");
         output.WriteLine("          ask the model for requirements and keep only those located in the source");
         output.WriteLine();
         output.WriteLine("Not implemented yet — each lands with its own task:");
-        output.WriteLine("  run     --document <path>         extract, verify, generate, assemble the matrix");
         output.WriteLine("  score   --run <id> --gold <path>  score a run against a gold standard");
         output.WriteLine("  export  --run <id>                export the matrix");
         output.WriteLine();

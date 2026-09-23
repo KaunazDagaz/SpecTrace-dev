@@ -59,17 +59,20 @@ Offline:  SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- run --do
 Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.json
 ```
 
-`Build` and `Test` work today. `Run`, `Offline` and `Score` are not implemented yet — the CLI
-prints usage and exits non-zero for them. They land with their own tasks.
+`Build`, `Test`, `Run` and `Offline` work today. `Score` is not implemented yet — the CLI
+prints usage and exits non-zero for it. It lands with its own task.
 
-As of SPEC-3 one command exists ahead of `run`: `extract --document <path>`, which does
-extraction and verification only and writes `requirements.json`, `rejected-quotes.json` and
-`decisions.json` under `runs/{runId}/`. With `SPECTRACE_OFFLINE=1` it replays from `cache/`
-and needs no key. `dotnet test` includes that replay against the committed cache entry.
+As of SPEC-4, `run` extracts, verifies, generates test cases for the requirements the model
+classified testable, and writes `requirements.json`, `rejected-quotes.json`, `decisions.json`,
+`test-cases.json`, `matrix.json` and `matrix.html` under `runs/{runId}/`. With
+`SPECTRACE_OFFLINE=1` it replays from `cache/` and needs no key. `dotnet test` includes that
+replay against the committed cache entries. `extract --document <path>` still does extraction
+and verification only.
 
 A live call needs `GEMINI_API_KEY` in the environment — the Windows user environment or the
 shell, never a file in this repository, `.env` included. `tests/SpecTrace.Llm.Tests` holds one
-live check that skips itself when the key is absent, so CI stays keyless.
+live check that skips itself when the key is absent, so CI stays keyless. When the key is
+present, every `dotnet test` spends one real request from the daily quota on that check.
 
 `corpus/rfc6902.txt` is in the repository as of SPEC-2. `.gitattributes` marks `corpus/**` as
 `-text` so git performs no end-of-line conversion on it: the file is LF on every platform, and
@@ -117,7 +120,7 @@ These run in CI against the committed cache. Do not merge with any of them red, 
 | I1 | For every requirement, the raw text at its span normalises to exactly the requirement's text normalised. |
 | I2 | Every test case's requirement IDs reference a requirement present in the register. |
 | I3 | Every requirement in the register appears in the matrix exactly once. |
-| I4 | Status is `gap` if and only if the requirement has zero non-rejected test cases. |
+| I4 | A requirement's status is `gap` if and only if it has zero non-rejected test cases and no logged human decision marks it not testable or deferred. A model's classification alone never sets a requirement to not testable or deferred; requirements the model flags go to the human decision queue and remain gaps until a human decides. |
 | I5 | No test case has an empty requirement ID list. |
 | I6 | Requirement IDs are unique within a run, and identical across two runs over the same document with the same prompts. |
 | I7 | No requirement with failed verification appears in the register or the matrix. |
