@@ -5,36 +5,6 @@ public sealed class RateLimitedLlmClientTests
     private static readonly LlmRequest AnyRequest =
         new("system", "user", "gemini-3.5-flash", 0, 1024, null, "hash");
 
-    private sealed class ManualTimeProvider : TimeProvider
-    {
-        private long _ticks;
-
-        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
-
-        public override long GetTimestamp() => _ticks;
-
-        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(_ticks);
-
-        public void Advance(TimeSpan by) => _ticks += by.Ticks;
-    }
-
-    private sealed class DelayRecorder
-    {
-        public DelayRecorder(ManualTimeProvider clock) => Clock = clock;
-
-        public ManualTimeProvider Clock { get; }
-
-        public List<TimeSpan> Delays { get; } = [];
-
-        public Task RecordAsync(TimeSpan delay, CancellationToken cancellationToken)
-        {
-            Delays.Add(delay);
-            Clock.Advance(delay);
-
-            return Task.CompletedTask;
-        }
-    }
-
     private sealed class FailingLlmClient : ILlmClient
     {
         private readonly Queue<Exception> _failures;
@@ -65,7 +35,7 @@ public sealed class RateLimitedLlmClientTests
             timeProvider: recorder.Clock,
             delayAsync: recorder.RecordAsync);
 
-    private static DelayRecorder NewRecorder() => new(new ManualTimeProvider());
+    private static DelayRecorder NewRecorder() => new();
 
     [Fact]
     public async Task ARateLimitedCallIsRetriedAfterAnExponentiallyGrowingWait()

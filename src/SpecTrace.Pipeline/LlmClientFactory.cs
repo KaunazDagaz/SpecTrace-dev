@@ -4,7 +4,9 @@ namespace SpecTrace.Pipeline;
 
 public static class LlmClientFactory
 {
-    public const string DefaultModel = "gemini-3.5-flash";
+    public const string DefaultModel = "gemini-3.5-flash-lite";
+
+    public const int RequestsPerMinute = 10;
 
     private const string OfflinePlaceholderKey = "offline-no-key-is-used";
 
@@ -26,7 +28,7 @@ public static class LlmClientFactory
                     + "committed cache with no key."));
 
         return new CachingLlmClient(
-            new RateLimitedLlmClient(new GeminiLlmClient(httpClient, key)),
+            new RateLimitedLlmClient(new GeminiLlmClient(httpClient, key), RequestsPerMinute),
             cacheDirectory,
             offline);
     }

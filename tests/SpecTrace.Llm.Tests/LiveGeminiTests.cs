@@ -2,7 +2,7 @@ namespace SpecTrace.Llm.Tests;
 
 public sealed class LiveGeminiTests
 {
-    private const string Model = "gemini-3.5-flash";
+    private const string Model = "gemini-3.5-flash-lite";
 
     private static LlmRequest SmokeRequest() =>
         new(

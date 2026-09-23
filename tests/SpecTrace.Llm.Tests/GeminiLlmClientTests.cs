@@ -220,6 +220,131 @@ public sealed class GeminiLlmClientTests
         Assert.Equal(25.775797133, exception.RetryAfter!.Value.TotalSeconds, precision: 6);
     }
 
+    private const string DailyQuotaExhausted = """
+        {
+          "error": {
+            "code": 429,
+            "message": "You exceeded your current quota. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 500, model: gemini-3.5-flash-lite. Please retry in 25s.",
+            "status": "RESOURCE_EXHAUSTED",
+            "details": [
+              {
+                "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                "violations": [
+                  {
+                    "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+                    "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+                    "quotaDimensions": { "location": "global", "model": "gemini-3.5-flash-lite" },
+                    "quotaValue": "500"
+                  }
+                ]
+              },
+              { "@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "25s" }
+            ]
+          }
+        }
+        """;
+
+    private const string PerMinuteLimitReached = """
+        {
+          "error": {
+            "code": 429,
+            "message": "You exceeded your current quota. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 10, model: gemini-3.5-flash-lite. Please retry in 7s.",
+            "status": "RESOURCE_EXHAUSTED",
+            "details": [
+              {
+                "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                "violations": [
+                  {
+                    "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+                    "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+                    "quotaDimensions": { "location": "global", "model": "gemini-3.5-flash-lite" },
+                    "quotaValue": "10"
+                  }
+                ]
+              },
+              { "@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "7s" }
+            ]
+          }
+        }
+        """;
+
+    private static RateLimitedLlmClient RateLimited(GeminiLlmClient client, DelayRecorder recorder) =>
+        new(
+            client,
+            requestsPerMinute: 60_000,
+            maximumAttempts: 6,
+            timeProvider: recorder.Clock,
+            delayAsync: recorder.RecordAsync);
+
+    [Fact]
+    public async Task AnExhaustedDailyQuotaIsReportedAsExhaustedEvenWhenTheBodyAlsoCarriesAShortRetryHint()
+    {
+        var (client, _) = ClientFor(StubHttpMessageHandler.Json(HttpStatusCode.TooManyRequests, DailyQuotaExhausted));
+
+        var exception = await Assert.ThrowsAsync<LlmQuotaExhaustedException>(
+            () => client.CompleteAsync(Request(), CancellationToken.None));
+
+        Assert.IsNotType<LlmRetryableException>(exception, exactMatch: false);
+        Assert.Equal("GenerateRequestsPerDayPerProjectPerModel-FreeTier", exception.QuotaId);
+        Assert.Equal("500", exception.Limit);
+        Assert.Contains("gemini-3.5-flash", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("midnight Pacific", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SPECTRACE_OFFLINE", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task APerMinuteLimitIsReportedAsARetryableRateLimitWithItsRetryHint()
+    {
+        var (client, _) = ClientFor(StubHttpMessageHandler.Json(HttpStatusCode.TooManyRequests, PerMinuteLimitReached));
+
+        var exception = await Assert.ThrowsAsync<LlmRateLimitException>(
+            () => client.CompleteAsync(Request(), CancellationToken.None));
+
+        Assert.Equal(TimeSpan.FromSeconds(7), exception.RetryAfter);
+    }
+
+    [Fact]
+    public async Task AnExhaustedDailyQuotaReachesTheProviderOnceAndIsNeverRetried()
+    {
+        var (client, handler) = ClientFor(
+            StubHttpMessageHandler.Json(HttpStatusCode.TooManyRequests, DailyQuotaExhausted),
+            StubHttpMessageHandler.Json(HttpStatusCode.OK, SuccessBody));
+        var recorder = new DelayRecorder();
+
+        await Assert.ThrowsAsync<LlmQuotaExhaustedException>(
+            () => RateLimited(client, recorder).CompleteAsync(Request(), CancellationToken.None));
+
+        Assert.Single(handler.Requests);
+        Assert.Empty(recorder.Delays);
+    }
+
+    [Fact]
+    public async Task APerMinuteLimitIsRetriedAfterItsHintAndTheCallThenSucceeds()
+    {
+        var (client, handler) = ClientFor(
+            StubHttpMessageHandler.Json(HttpStatusCode.TooManyRequests, PerMinuteLimitReached),
+            StubHttpMessageHandler.Json(HttpStatusCode.TooManyRequests, PerMinuteLimitReached),
+            StubHttpMessageHandler.Json(HttpStatusCode.OK, SuccessBody));
+        var recorder = new DelayRecorder();
+
+        var response = await RateLimited(client, recorder).CompleteAsync(Request(), CancellationToken.None);
+
+        Assert.Equal("[{\"quote\":\"x\"}]", response.Text);
+        Assert.Equal(3, handler.Requests.Count);
+        Assert.Equal([TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(7)], recorder.Delays);
+    }
+
+    [Fact]
+    public async Task A429WithNoQuotaDetailsIsTreatedAsARetryableRateLimit()
+    {
+        var (client, _) = ClientFor(StubHttpMessageHandler.Json(
+            HttpStatusCode.TooManyRequests,
+            """{ "error": { "code": 429, "status": "RESOURCE_EXHAUSTED" } }"""));
+
+        await Assert.ThrowsAsync<LlmRateLimitException>(
+            () => client.CompleteAsync(Request(), CancellationToken.None));
+    }
+
     [Fact]
     public async Task AnHttp503BecomesATransientFailureBecauseTheProviderCallsItTemporary()
     {

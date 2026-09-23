@@ -75,7 +75,7 @@ public sealed class GeminiLlmClient : ILlmClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw Failure(response, body);
+            throw Failure(response, body, request.Model);
         }
 
         return Parse(body, request);
@@ -206,11 +206,24 @@ public sealed class GeminiLlmClient : ILlmClient
         return (input, output);
     }
 
-    private static LlmException Failure(HttpResponseMessage response, string body)
+    private static LlmException Failure(HttpResponseMessage response, string body, string model)
     {
-        var retryAfter = RetryAfterOf(response.Headers.RetryAfter) ?? RetryDelayInBody(body);
+        var errorDetails = ErrorDetails(body);
+        var retryAfter = RetryAfterOf(response.Headers.RetryAfter) ?? RetryDelay(errorDetails);
         var status = (int)response.StatusCode;
         var detail = Truncate(body);
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests
+            && DailyQuotaViolation(errorDetails) is { } quota)
+        {
+            return new LlmQuotaExhaustedException(
+                $"Gemini's daily request quota for model '{model}' is exhausted (quota '{quota.Id}', "
+                + $"limit {quota.Limit ?? "not reported"}). Per-day quotas reset at midnight Pacific time, "
+                + "so retrying before then cannot succeed. Replay from the committed cache with "
+                + $"{CachingLlmClient.OfflineVariable}=1 in the meantime.",
+                quota.Id,
+                quota.Limit);
+        }
 
         return response.StatusCode switch
         {
@@ -253,33 +266,73 @@ public sealed class GeminiLlmClient : ILlmClient
             : null;
     }
 
-    private static TimeSpan? RetryDelayInBody(string body)
+    private static List<JsonElement> ErrorDetails(string body)
     {
         try
         {
             using var document = JsonDocument.Parse(body);
 
-            if (!document.RootElement.TryGetProperty("error", out var error)
-                || !error.TryGetProperty("details", out var details)
-                || details.ValueKind != JsonValueKind.Array)
+            if (document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("error", out var error)
+                && error.ValueKind == JsonValueKind.Object
+                && error.TryGetProperty("details", out var details)
+                && details.ValueKind == JsonValueKind.Array)
             {
-                return null;
-            }
-
-            foreach (var detail in details.EnumerateArray())
-            {
-                if (detail.TryGetProperty("@type", out var type)
-                    && type.GetString() is { } typeName
-                    && typeName.EndsWith("RetryInfo", StringComparison.Ordinal)
-                    && detail.TryGetProperty("retryDelay", out var delay)
-                    && ParseDuration(delay.GetString()) is { } parsed)
-                {
-                    return parsed;
-                }
+                return details.EnumerateArray().Select(detail => detail.Clone()).ToList();
             }
         }
         catch (JsonException)
         {
+        }
+
+        return [];
+    }
+
+    private static IEnumerable<JsonElement> DetailsOfType(IEnumerable<JsonElement> details, string typeSuffix) =>
+        details.Where(detail =>
+            detail.ValueKind == JsonValueKind.Object
+            && detail.TryGetProperty("@type", out var type)
+            && type.GetString() is { } typeName
+            && typeName.EndsWith(typeSuffix, StringComparison.Ordinal));
+
+    private static TimeSpan? RetryDelay(IEnumerable<JsonElement> details)
+    {
+        foreach (var retryInfo in DetailsOfType(details, "RetryInfo"))
+        {
+            if (retryInfo.TryGetProperty("retryDelay", out var delay)
+                && ParseDuration(delay.GetString()) is { } parsed)
+            {
+                return parsed;
+            }
+        }
+
+        return null;
+    }
+
+    private static (string Id, string? Limit)? DailyQuotaViolation(IEnumerable<JsonElement> details)
+    {
+        foreach (var quotaFailure in DetailsOfType(details, "QuotaFailure"))
+        {
+            if (!quotaFailure.TryGetProperty("violations", out var violations)
+                || violations.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var violation in violations.EnumerateArray())
+            {
+                if (violation.ValueKind == JsonValueKind.Object
+                    && violation.TryGetProperty("quotaId", out var quotaId)
+                    && quotaId.GetString() is { } id
+                    && id.Contains("PerDay", StringComparison.OrdinalIgnoreCase))
+                {
+                    var limit = violation.TryGetProperty("quotaValue", out var quotaValue)
+                        ? quotaValue.ToString()
+                        : null;
+
+                    return (id, limit);
+                }
+            }
         }
 
         return null;
