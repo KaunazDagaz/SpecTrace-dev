@@ -1,14 +1,3 @@
-# The corpus is addressed by character offset. Every requirement span, every
-# section lookup and every offset-map test is stated in raw character positions
-# into these files.
-#
-# core.autocrlf is on by default on Windows installs, so without this rule git
-# would check the corpus out with CRLF on Windows and LF on Linux CI. That shifts
-# every raw offset by one per preceding line — tests pass on one platform and
-# fail on the other, and the offset map gets blamed for a git problem.
-#
-# -text disables all end-of-line conversion: the bytes on disk are the bytes in
-# the object store, on every platform.
 corpus/** -text
 
 src/SpecTrace.Pipeline/Prompts/** -text
