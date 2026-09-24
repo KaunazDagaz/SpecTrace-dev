@@ -4,7 +4,11 @@ namespace SpecTrace.Pipeline;
 
 public static class LlmClientFactory
 {
+    public const string Provider = "gemini";
+
     public const string DefaultModel = "gemini-3.5-flash-lite";
+
+    public const double Temperature = 0;
 
     public const int RequestsPerMinute = 10;
 

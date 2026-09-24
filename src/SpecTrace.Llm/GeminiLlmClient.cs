@@ -28,12 +28,9 @@ public sealed class GeminiLlmClient : ILlmClient
         _httpClient.BaseAddress ??= DefaultBaseAddress;
     }
 
-    public static string? ApiKeyFromEnvironment()
-    {
-        var key = Environment.GetEnvironmentVariable(ApiKeyVariable);
+    public static string? ApiKeyFromEnvironment() => ApiKeyFrom(Environment.GetEnvironmentVariable(ApiKeyVariable));
 
-        return string.IsNullOrWhiteSpace(key) ? null : key;
-    }
+    public static string? ApiKeyFrom(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     public async Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken cancellationToken)
     {

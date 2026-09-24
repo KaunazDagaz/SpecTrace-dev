@@ -16,6 +16,7 @@ public sealed class OfflineReplayTests
             Corpus.Path,
             client,
             LlmClientFactory.DefaultModel,
+            PromptFile.Extraction,
             CancellationToken.None);
 
         return (result, network);

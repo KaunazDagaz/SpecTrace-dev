@@ -1,0 +1,96 @@
+[
+  {
+    "id": "DQ-rfc6902-1dd2c2",
+    "quote": "The target location MUST exist for the operation to be successful.",
+    "section": "(multiple locations)",
+    "reason": "quote_found_more_than_once",
+    "verification": "ambiguous",
+    "requirement_id": null,
+    "question": "This quote occurs more than once in the document, so no single span can be claimed for it. Which occurrence is meant, or should it be dropped?",
+    "blocked_reason": null,
+    "claims": [
+      {
+        "modality": "MUST",
+        "testability": "testable",
+        "testability_note": null,
+        "quote": "The target location MUST exist for the operation to be successful."
+      },
+      {
+        "modality": "MUST",
+        "testability": "testable",
+        "testability_note": null,
+        "quote": "The target location MUST exist for the operation to be successful."
+      }
+    ],
+    "resolution": null
+  },
+  {
+    "id": "DQ-rfc6902-0886b2",
+    "quote": "The \"from\" location MUST exist for the operation to be successful.",
+    "section": "(multiple locations)",
+    "reason": "quote_found_more_than_once",
+    "verification": "ambiguous",
+    "requirement_id": null,
+    "question": "This quote occurs more than once in the document, so no single span can be claimed for it. Which occurrence is meant, or should it be dropped?",
+    "blocked_reason": null,
+    "claims": [
+      {
+        "modality": "MUST",
+        "testability": "testable",
+        "testability_note": null,
+        "quote": "The \"from\" location MUST exist for the operation to be successful."
+      },
+      {
+        "modality": "MUST",
+        "testability": "testable",
+        "testability_note": null,
+        "quote": "The \"from\" location MUST exist for the operation to be successful."
+      }
+    ],
+    "resolution": null
+  },
+  {
+    "id": "DQ-rfc6902-3bbcaf",
+    "quote": "If a normative requirement is violated by a JSON Patch document, or if an operation is not successful, evaluation of the JSON Patch document SHOULD terminate and application of the entire patch document SHALL NOT be deemed successful.",
+    "section": "5",
+    "reason": "same_quote_claimed_with_different_readings",
+    "verification": "exact",
+    "requirement_id": null,
+    "question": "The model claimed this quote 2 times with different readings: SHOULD (testable), MUST_NOT (testable). A sentence can carry more than one obligation. Which of these readings apply?",
+    "blocked_reason": null,
+    "claims": [
+      {
+        "modality": "SHOULD",
+        "testability": "testable",
+        "testability_note": null,
+        "quote": "If a normative requirement is violated by a JSON Patch document, or if an operation is not successful, evaluation of the JSON Patch document SHOULD terminate and application of the entire patch document SHALL NOT be deemed successful."
+      },
+      {
+        "modality": "MUST_NOT",
+        "testability": "testable",
+        "testability_note": null,
+        "quote": "If a normative requirement is violated by a JSON Patch document, or if an operation is not successful, evaluation of the JSON Patch document SHOULD terminate and application of the entire patch document SHALL NOT be deemed successful."
+      }
+    ],
+    "resolution": null
+  },
+  {
+    "id": "DQ-rfc6902-5a829e",
+    "quote": "When the operation is applied, the target location MUST reference one of:",
+    "section": "4.1",
+    "reason": "generation_blocked",
+    "verification": "exact",
+    "requirement_id": "REQ-rfc6902-5a829e",
+    "question": "The model wrote no test case from this quote and gave the reason recorded with this item. The requirement stays a gap until a person decides: can a case be written from the quote, is it not testable, or should it be deferred?",
+    "blocked_reason": "The requirement quote is incomplete and cuts off before specifying what the target location must reference, making it impossible to derive meaningful test cases.",
+    "claims": [
+      {
+        "modality": "MUST",
+        "testability": "testable",
+        "testability_note": null,
+        "quote": "When the operation is applied, the target location MUST reference one of:"
+      }
+    ],
+    "resolution": null
+  }
+]

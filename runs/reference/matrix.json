@@ -1,0 +1,124 @@
+{
+  "document_id": "rfc6902",
+  "rows": [
+    {
+      "requirement_id": "REQ-rfc6902-07e6ff",
+      "modality": "MUST",
+      "section": "4",
+      "test_case_ids": [
+        "TC-07e6ff-01",
+        "TC-07e6ff-02",
+        "TC-07e6ff-03"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-1d542c",
+      "modality": "MUST",
+      "section": "4",
+      "test_case_ids": [
+        "TC-1d542c-01",
+        "TC-1d542c-02"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-3d4323",
+      "modality": "MUST",
+      "section": "4",
+      "test_case_ids": [
+        "TC-3d4323-01",
+        "TC-3d4323-02",
+        "TC-3d4323-03"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-6b9d3a",
+      "modality": "MUST",
+      "section": "4",
+      "test_case_ids": [
+        "TC-6b9d3a-01"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-c2cc75",
+      "modality": "MUST",
+      "section": "4.1",
+      "test_case_ids": [
+        "TC-c2cc75-01",
+        "TC-c2cc75-02"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-5a829e",
+      "modality": "MUST",
+      "section": "4.1",
+      "test_case_ids": [],
+      "status": "gap"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-d6485b",
+      "modality": "MUST",
+      "section": "4.1",
+      "test_case_ids": [
+        "TC-d6485b-01",
+        "TC-d6485b-02"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-cd65df",
+      "modality": "MUST",
+      "section": "4.4",
+      "test_case_ids": [
+        "TC-cd65df-01",
+        "TC-cd65df-02"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-a4a8ae",
+      "modality": "MUST",
+      "section": "4.4",
+      "test_case_ids": [
+        "TC-a4a8ae-01",
+        "TC-a4a8ae-02"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-f74ad5",
+      "modality": "MUST",
+      "section": "4.5",
+      "test_case_ids": [
+        "TC-f74ad5-01",
+        "TC-f74ad5-02"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-7fc509",
+      "modality": "MUST",
+      "section": "4.6",
+      "test_case_ids": [
+        "TC-7fc509-01",
+        "TC-7fc509-02"
+      ],
+      "status": "covered"
+    },
+    {
+      "requirement_id": "REQ-rfc6902-399ed7",
+      "modality": "MUST",
+      "section": "4.6",
+      "test_case_ids": [
+        "TC-399ed7-01",
+        "TC-399ed7-02"
+      ],
+      "status": "covered"
+    }
+  ],
+  "orphans": []
+}

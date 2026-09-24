@@ -18,11 +18,13 @@ public sealed class TestCaseGenerator
     private readonly ILlmClient _client;
     private readonly string _model;
     private readonly int _maxOutputTokens;
+    private readonly PromptFile _prompt;
 
     public TestCaseGenerator(
         ILlmClient client,
         string model,
-        int maxOutputTokens = DefaultMaxOutputTokens)
+        int maxOutputTokens = DefaultMaxOutputTokens,
+        PromptFile? prompt = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
@@ -30,6 +32,7 @@ public sealed class TestCaseGenerator
         _client = client;
         _model = model;
         _maxOutputTokens = maxOutputTokens;
+        _prompt = prompt ?? PromptFile.Generation;
     }
 
     public static string UserPromptFor(Requirement requirement)
@@ -51,13 +54,13 @@ public sealed class TestCaseGenerator
 
     public LlmRequest RequestFor(Requirement requirement) =>
         new(
-            SystemPrompt: PromptFile.Generation.Text,
+            SystemPrompt: _prompt.Text,
             UserPrompt: UserPromptFor(requirement),
             Model: _model,
-            Temperature: 0,
+            Temperature: LlmClientFactory.Temperature,
             MaxOutputTokens: _maxOutputTokens,
             JsonSchema: GenerationSchema.Json,
-            PromptSha256: PromptFile.Generation.Sha256);
+            PromptSha256: _prompt.Sha256);
 
     public async Task<Generation> GenerateAsync(Requirement requirement, CancellationToken cancellationToken)
     {
@@ -71,9 +74,19 @@ public sealed class TestCaseGenerator
                 nameof(requirement));
         }
 
-        var response = await _client
-            .CompleteAsync(RequestFor(requirement), cancellationToken)
-            .ConfigureAwait(false);
+        LlmResponse response;
+
+        try
+        {
+            response = await _client
+                .CompleteAsync(RequestFor(requirement), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OfflineCacheMissException miss)
+        {
+            throw miss.During(
+                $"the generation call for {requirement.Id} (section {requirement.Section}), prompt {_prompt.Name}");
+        }
 
         GenerationAnswer answer;
 
