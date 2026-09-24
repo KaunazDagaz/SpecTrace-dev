@@ -25,10 +25,15 @@ Milestone M1 (vertical slice) is in progress. What exists today:
   section index;
 - the LLM client behind one interface, with its disk cache, rate limiting and backoff;
 - requirement extraction and fail-closed verification: every claimed quote is located in the
-  source or kept out of the register, and the recorded extraction replays offline in CI.
+  source or kept out of the register;
+- test case generation for each requirement the model classified testable, grounded only in that
+  requirement's quote and section number, with every case a proposal until a person reviews it;
+- the traceability matrix, derived from the register and the case set alone, with gaps, orphan
+  cases and the human decision queue visible in `matrix.html`;
+- `run`, which does all of the above and replays offline from the committed cache.
 
-Not implemented yet, each with its own task: test case generation, the traceability matrix,
-and the full offline end-to-end `run`.
+Not implemented yet, each with its own task: the CI end-to-end run and the committed reference
+run, then the review UI, scoring and the baseline in the next milestone.
 
 ## Prerequisites
 
@@ -44,20 +49,26 @@ Working today:
 dotnet build --warnaserror     # must stay at 0 warnings, 0 errors
 dotnet test                    # unit tests, invariants, and the offline replay of the committed cache
 
-# extraction and verification only, replayed from cache/ — no key, no network
+# the whole pipeline, replayed from cache/ — no key, no network
+SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt
+
+# extraction and verification only
 SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- extract --document corpus/rfc6902.txt
 ```
 
-`extract` writes `requirements.json`, `rejected-quotes.json` and `decisions.json` under
-`runs/{runId}/`. Without `SPECTRACE_OFFLINE` it calls Gemini for any request not already in
+`run` writes `requirements.json`, `rejected-quotes.json`, `decisions.json`, `test-cases.json`,
+`matrix.json` and `matrix.html` under `runs/{runId}/`; `extract` writes the first three.
+Without `SPECTRACE_OFFLINE` either command calls Gemini for any request not already in
 `cache/`, which needs `GEMINI_API_KEY` set in the environment.
 
+`matrix.html` is a static page. Coverage in it is by proposed, unreviewed test cases, and it
+does not claim the specification is fully covered: only that each requirement in the register
+does or does not have a proposed case.
+
 Documented for later, and currently not implemented — the CLI prints usage and exits with a
-non-zero status if you pass any of them:
+non-zero status if you pass it:
 
 ```
-dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt
-SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt
 dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.json
 ```
 
@@ -68,7 +79,7 @@ src/SpecTrace.Core/        verifiable core: domain types, normalisation, spans, 
                            no network, no file I/O, no LLM dependency
 src/SpecTrace.Llm/         probabilistic edge: one client interface, cached and swappable
 src/SpecTrace.Pipeline/    orchestration of the two halves, prompt files
-src/SpecTrace.Cli/         thin entry point: extract today; run, score, export later
+src/SpecTrace.Cli/         thin entry point: run and extract today; score, export later
 tests/SpecTrace.Core.Tests/       unit tests for the core
 tests/SpecTrace.Llm.Tests/        client, cache and backoff, all against fakes; one live check
 tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline replay of the committed cache

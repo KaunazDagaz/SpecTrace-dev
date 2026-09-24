@@ -18,7 +18,22 @@ public static class ExtractionRun
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
         var raw = await File.ReadAllTextAsync(documentPath, cancellationToken).ConfigureAwait(false);
-        var documentId = Path.GetFileNameWithoutExtension(documentPath);
+
+        return await ExecuteAsync(DocumentIdFor(documentPath), raw, client, model, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public static async Task<ExtractionRunResult> ExecuteAsync(
+        string documentId,
+        string raw,
+        ILlmClient client,
+        string model,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentId);
+        ArgumentNullException.ThrowIfNull(raw);
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
         var extraction = await new RequirementExtractor(client, model)
             .ExtractAsync(documentId, raw, cancellationToken)
@@ -37,6 +52,8 @@ public static class ExtractionRun
             outcome,
             extraction.Response);
     }
+
+    public static string DocumentIdFor(string documentPath) => Path.GetFileNameWithoutExtension(documentPath);
 
     public static string RunIdFor(string documentId, string rawDocument, string model)
     {

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SpecTrace.Core;
 using SpecTrace.Llm;
 
@@ -112,4 +113,99 @@ internal static class ModelAnswer
             ["testability"] = entry.Testability,
             ["testability_note"] = null,
         }));
+}
+
+internal sealed class RoutingLlmClient : ILlmClient
+{
+    private readonly Func<LlmRequest, string> _answer;
+
+    public RoutingLlmClient(Func<LlmRequest, string> answer) => _answer = answer;
+
+    public List<LlmRequest> Requests { get; } = [];
+
+    public IEnumerable<LlmRequest> GenerationRequests =>
+        Requests.Where(request => request.PromptSha256 == PromptFile.Generation.Sha256);
+
+    public Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken cancellationToken)
+    {
+        Requests.Add(request);
+
+        return Task.FromResult(new LlmResponse(_answer(request), InputTokens: 100, OutputTokens: 50, FromCache: false));
+    }
+
+    public static RoutingLlmClient For(string extractionAnswer, Func<string, string> generationAnswerForQuote) =>
+        new(request => request.PromptSha256 == PromptFile.Extraction.Sha256
+            ? extractionAnswer
+            : generationAnswerForQuote(QuoteIn(request)));
+
+    private static string QuoteIn(LlmRequest request)
+    {
+        const string Marker = "\nREQUIREMENT: ";
+
+        return request.UserPrompt[(request.UserPrompt.IndexOf(Marker, StringComparison.Ordinal) + Marker.Length)..];
+    }
+}
+
+internal static class GenerationAnswerJson
+{
+    public static string Cases(params (string Type, string Title)[] cases) =>
+        JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["cases"] = cases.Select(generated => new Dictionary<string, object?>
+            {
+                ["title"] = generated.Title,
+                ["type"] = generated.Type,
+                ["precondition"] = "A target JSON document.",
+                ["input"] = "A JSON Patch document with one operation.",
+                ["expected_result"] = "The observable result the quote states.",
+            }).ToList(),
+            ["blocked_reason"] = null,
+        });
+
+    public static string Blocked(string reason) =>
+        JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["cases"] = Array.Empty<object>(),
+            ["blocked_reason"] = reason,
+        });
+}
+
+internal static class SchemaInspection
+{
+    public static readonly string[] PositionLikeNames =
+    [
+        "offset", "position", "location", "line", "column", "index", "start", "end", "span", "char",
+    ];
+
+    public static IEnumerable<string> PropertyNamesIn(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (property.Name == "properties")
+                {
+                    foreach (var declared in property.Value.EnumerateObject())
+                    {
+                        yield return declared.Name;
+                    }
+                }
+
+                foreach (var nested in PropertyNamesIn(property.Value))
+                {
+                    yield return nested;
+                }
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                foreach (var nested in PropertyNamesIn(item))
+                {
+                    yield return nested;
+                }
+            }
+        }
+    }
 }

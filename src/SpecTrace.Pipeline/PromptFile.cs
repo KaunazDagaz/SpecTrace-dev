@@ -21,6 +21,8 @@ public sealed class PromptFile
 
     public static PromptFile Extraction { get; } = Load("extract.system.md");
 
+    public static PromptFile Generation { get; } = Load("generate.system.md");
+
     public static PromptFile Load(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
