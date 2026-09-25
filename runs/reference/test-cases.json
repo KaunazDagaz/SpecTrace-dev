@@ -1,0 +1,301 @@
+[
+  {
+    "id": "TC-07e6ff-01",
+    "requirement_ids": [
+      "REQ-rfc6902-07e6ff"
+    ],
+    "title": "Provide operation object with exactly one op member",
+    "type": "positive",
+    "precondition": "An operation object is being constructed.",
+    "input": "{\"op\": \"add\"}",
+    "expected_result": "The operation object is accepted as valid regarding the 'op' member requirement.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-07e6ff-02",
+    "requirement_ids": [
+      "REQ-rfc6902-07e6ff"
+    ],
+    "title": "Provide operation object with zero op members",
+    "type": "negative",
+    "precondition": "An operation object is being constructed.",
+    "input": "{}",
+    "expected_result": "The operation object is rejected for failing to have exactly one 'op' member.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-07e6ff-03",
+    "requirement_ids": [
+      "REQ-rfc6902-07e6ff"
+    ],
+    "title": "Provide operation object with multiple op members",
+    "type": "negative",
+    "precondition": "An operation object is being constructed.",
+    "input": "{\"op\": \"add\", \"op\": \"replace\"}",
+    "expected_result": "The operation object is rejected for failing to have exactly one 'op' member.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-1d542c-01",
+    "requirement_ids": [
+      "REQ-rfc6902-1d542c"
+    ],
+    "title": "Use a valid value",
+    "type": "positive",
+    "precondition": "A system processing values according to section 4 is running",
+    "input": "add",
+    "expected_result": "The value is accepted as valid without error.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-1d542c-02",
+    "requirement_ids": [
+      "REQ-rfc6902-1d542c"
+    ],
+    "title": "Use an invalid value",
+    "type": "negative",
+    "precondition": "A system processing values according to section 4 is running",
+    "input": "invalid_value",
+    "expected_result": "The value is recognized as an error.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-3d4323-01",
+    "requirement_ids": [
+      "REQ-rfc6902-3d4323"
+    ],
+    "title": "Verify operation object with exactly one path member is valid",
+    "type": "positive",
+    "precondition": "An operation object is being defined",
+    "input": "An operation object containing one \"path\" member",
+    "expected_result": "The operation object is accepted as valid regarding the path requirement",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-3d4323-02",
+    "requirement_ids": [
+      "REQ-rfc6902-3d4323"
+    ],
+    "title": "Verify operation object with no path member is invalid",
+    "type": "negative",
+    "precondition": "An operation object is being defined",
+    "input": "An operation object containing zero \"path\" members",
+    "expected_result": "The operation object is rejected as invalid",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-3d4323-03",
+    "requirement_ids": [
+      "REQ-rfc6902-3d4323"
+    ],
+    "title": "Verify operation object with multiple path members is invalid",
+    "type": "negative",
+    "precondition": "An operation object is being defined",
+    "input": "An operation object containing two \"path\" members",
+    "expected_result": "The operation object is rejected as invalid",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-6b9d3a-01",
+    "requirement_ids": [
+      "REQ-rfc6902-6b9d3a"
+    ],
+    "title": "Operation completes ignoring undefined member",
+    "type": "positive",
+    "precondition": "An operation is defined with specific members.",
+    "input": "An object containing a member explicitly defined for the operation and an undefined member.",
+    "expected_result": "The operation completes successfully as if the undefined member did not appear in the object.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-c2cc75-01",
+    "requirement_ids": [
+      "REQ-rfc6902-c2cc75"
+    ],
+    "title": "Include value member in operation object",
+    "type": "positive",
+    "precondition": "An operation object is being constructed.",
+    "input": "Operation object containing a 'value' member with content specifying the value to be added.",
+    "expected_result": "The operation object is valid and contains the 'value' member.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-c2cc75-02",
+    "requirement_ids": [
+      "REQ-rfc6902-c2cc75"
+    ],
+    "title": "Omit value member from operation object",
+    "type": "negative",
+    "precondition": "An operation object is being constructed.",
+    "input": "Operation object without the 'value' member.",
+    "expected_result": "The operation object is invalid because it lacks the mandatory 'value' member.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-d6485b-01",
+    "requirement_ids": [
+      "REQ-rfc6902-d6485b"
+    ],
+    "title": "Access array with an index equal to the number of elements",
+    "type": "positive",
+    "precondition": "An array has a specific number of elements.",
+    "input": "Specify an index equal to the number of elements in the array.",
+    "expected_result": "The index is accepted as valid without error.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-d6485b-02",
+    "requirement_ids": [
+      "REQ-rfc6902-d6485b"
+    ],
+    "title": "Attempt to use an index greater than the number of elements",
+    "type": "negative",
+    "precondition": "An array has a specific number of elements.",
+    "input": "Specify an index greater than the number of elements in the array.",
+    "expected_result": "The operation is rejected or fails due to the index exceeding the element count.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-cd65df-01",
+    "requirement_ids": [
+      "REQ-rfc6902-cd65df"
+    ],
+    "title": "Include a valid from member with a JSON Pointer string",
+    "type": "positive",
+    "precondition": "An operation object is being constructed.",
+    "input": "An operation object containing \"from\": \"/pointer/location\"",
+    "expected_result": "The operation object is valid and contains the required \"from\" member referencing the source location.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-cd65df-02",
+    "requirement_ids": [
+      "REQ-rfc6902-cd65df"
+    ],
+    "title": "Omit the mandatory from member",
+    "type": "negative",
+    "precondition": "An operation object is being constructed.",
+    "input": "An operation object missing the \"from\" member",
+    "expected_result": "The operation object is considered invalid due to the missing mandatory \"from\" member.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-a4a8ae-01",
+    "requirement_ids": [
+      "REQ-rfc6902-a4a8ae"
+    ],
+    "title": "Prevent moving a location into one of its children",
+    "type": "negative",
+    "precondition": "A location exists at \"/a/b\" and a child location exists at \"/a/b/c\".",
+    "input": "Attempt to move the \"from\" location \"/a/b\" to the \"path\" location \"/a/b/c\".",
+    "expected_result": "The operation is rejected because the \"from\" location is a proper prefix of the \"path\" location.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-a4a8ae-02",
+    "requirement_ids": [
+      "REQ-rfc6902-a4a8ae"
+    ],
+    "title": "Allow moving a location to a non-prefix path",
+    "type": "positive",
+    "precondition": "A location exists at \"/a/b\" and another location exists at \"/c/d\".",
+    "input": "Attempt to move the \"from\" location \"/a/b\" to the \"path\" location \"/c/d\".",
+    "expected_result": "The operation is allowed because the \"from\" location is not a proper prefix of the \"path\" location.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-f74ad5-01",
+    "requirement_ids": [
+      "REQ-rfc6902-f74ad5"
+    ],
+    "title": "Include from member with a JSON Pointer string",
+    "type": "positive",
+    "precondition": "An operation object is constructed for a target document.",
+    "input": "Operation object containing \"from\": \"/path/to/value\"",
+    "expected_result": "The operation object is accepted as valid regarding the \"from\" requirement.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-f74ad5-02",
+    "requirement_ids": [
+      "REQ-rfc6902-f74ad5"
+    ],
+    "title": "Omit from member from the operation object",
+    "type": "negative",
+    "precondition": "An operation object is constructed for a target document.",
+    "input": "Operation object missing the \"from\" member",
+    "expected_result": "The operation object is rejected as invalid because it lacks the mandatory \"from\" member.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-7fc509-01",
+    "requirement_ids": [
+      "REQ-rfc6902-7fc509"
+    ],
+    "title": "Include value member in operation object",
+    "type": "positive",
+    "precondition": "An operation object is being constructed.",
+    "input": "An operation object containing a \"value\" member.",
+    "expected_result": "The operation object is valid and successfully conveys the value to be compared.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-7fc509-02",
+    "requirement_ids": [
+      "REQ-rfc6902-7fc509"
+    ],
+    "title": "Omit value member from operation object",
+    "type": "negative",
+    "precondition": "An operation object is being constructed.",
+    "input": "An operation object lacking the \"value\" member.",
+    "expected_result": "The operation is considered invalid because the \"value\" member is required.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-399ed7-01",
+    "requirement_ids": [
+      "REQ-rfc6902-399ed7"
+    ],
+    "title": "Perform operation where target location equals the value value",
+    "type": "positive",
+    "precondition": "An operation is initialized with a target location and a 'value' value.",
+    "input": "Target location matches the 'value' value.",
+    "expected_result": "The operation is considered successful.",
+    "status": "proposed",
+    "review": null
+  },
+  {
+    "id": "TC-399ed7-02",
+    "requirement_ids": [
+      "REQ-rfc6902-399ed7"
+    ],
+    "title": "Perform operation where target location does not equal the value value",
+    "type": "negative",
+    "precondition": "An operation is initialized with a target location and a 'value' value.",
+    "input": "Target location does not match the 'value' value.",
+    "expected_result": "The operation is not considered successful.",
+    "status": "proposed",
+    "review": null
+  }
+]

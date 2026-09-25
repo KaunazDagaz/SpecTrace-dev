@@ -11,11 +11,13 @@ public sealed class RequirementExtractor
     private readonly ILlmClient _client;
     private readonly string _model;
     private readonly int _maxOutputTokens;
+    private readonly PromptFile _prompt;
 
     public RequirementExtractor(
         ILlmClient client,
         string model,
-        int maxOutputTokens = DefaultMaxOutputTokens)
+        int maxOutputTokens = DefaultMaxOutputTokens,
+        PromptFile? prompt = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
@@ -23,6 +25,7 @@ public sealed class RequirementExtractor
         _client = client;
         _model = model;
         _maxOutputTokens = maxOutputTokens;
+        _prompt = prompt ?? PromptFile.Extraction;
     }
 
     public LlmRequest RequestFor(string documentId, string rawDocument)
@@ -31,13 +34,13 @@ public sealed class RequirementExtractor
         ArgumentNullException.ThrowIfNull(rawDocument);
 
         return new LlmRequest(
-            SystemPrompt: PromptFile.Extraction.Text,
+            SystemPrompt: _prompt.Text,
             UserPrompt: $"DOCUMENT ID: {documentId}\n\n{rawDocument}",
             Model: _model,
-            Temperature: 0,
+            Temperature: LlmClientFactory.Temperature,
             MaxOutputTokens: _maxOutputTokens,
             JsonSchema: ExtractionSchema.Json,
-            PromptSha256: PromptFile.Extraction.Sha256);
+            PromptSha256: _prompt.Sha256);
     }
 
     public async Task<ExtractionResult> ExtractAsync(
@@ -46,7 +49,16 @@ public sealed class RequirementExtractor
         CancellationToken cancellationToken)
     {
         var request = RequestFor(documentId, rawDocument);
-        var response = await _client.CompleteAsync(request, cancellationToken).ConfigureAwait(false);
+        LlmResponse response;
+
+        try
+        {
+            response = await _client.CompleteAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OfflineCacheMissException miss)
+        {
+            throw miss.During($"the extraction call on {documentId}, prompt {_prompt.Name}");
+        }
 
         return new ExtractionResult(Parse(response.Text), response);
     }

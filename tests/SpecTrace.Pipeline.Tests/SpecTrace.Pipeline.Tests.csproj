@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SpecTrace.Core\SpecTrace.Core.csproj" />
     <ProjectReference Include="..\..\src\SpecTrace.Pipeline\SpecTrace.Pipeline.csproj" />
+    <ProjectReference Include="..\..\src\SpecTrace.Cli\SpecTrace.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>

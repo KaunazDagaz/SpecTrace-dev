@@ -7,6 +7,7 @@ namespace SpecTrace.Pipeline;
 
 public static class RunArtifacts
 {
+    public const string ManifestFile = "manifest.json";
     public const string RequirementsFile = "requirements.json";
     public const string RejectedQuotesFile = "rejected-quotes.json";
     public const string DecisionsFile = "decisions.json";
@@ -46,6 +47,11 @@ public static class RunArtifacts
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
 
         Directory.CreateDirectory(directory);
+
+        await WriteFileAsync(
+            Path.Combine(directory, ManifestFile),
+            ManifestJson.From(run.Manifest),
+            cancellationToken).ConfigureAwait(false);
 
         await WriteVerificationAsync(run.Extraction.Outcome, run.DecisionQueue, directory, cancellationToken)
             .ConfigureAwait(false);
@@ -172,6 +178,35 @@ public static class RunArtifacts
     {
         await using var stream = File.Create(path);
         await JsonSerializer.SerializeAsync(stream, value, Options, cancellationToken).ConfigureAwait(false);
+    }
+
+    private sealed record ManifestJson(
+        [property: JsonPropertyName("run_id")] string RunId,
+        [property: JsonPropertyName("document_id")] string DocumentId,
+        [property: JsonPropertyName("provider")] string Provider,
+        [property: JsonPropertyName("model")] string Model,
+        [property: JsonPropertyName("temperature")] double Temperature,
+        [property: JsonPropertyName("started_at")] DateTimeOffset StartedAt,
+        [property: JsonPropertyName("prompt_count")] int PromptCount,
+        [property: JsonPropertyName("cache_hits")] int CacheHits,
+        [property: JsonPropertyName("input_tokens")] int InputTokens,
+        [property: JsonPropertyName("output_tokens")] int OutputTokens,
+        [property: JsonPropertyName("pipeline_version")] string PipelineVersion,
+        [property: JsonPropertyName("git_sha")] string GitSha)
+    {
+        public static ManifestJson From(RunManifest manifest) => new(
+            manifest.RunId,
+            manifest.DocumentId,
+            manifest.Provider,
+            manifest.Model,
+            manifest.Temperature,
+            manifest.StartedAt.ToUniversalTime(),
+            manifest.PromptCount,
+            manifest.CacheHits,
+            manifest.InputTokens,
+            manifest.OutputTokens,
+            manifest.PipelineVersion,
+            manifest.GitSha);
     }
 
     private sealed record RequirementJson(

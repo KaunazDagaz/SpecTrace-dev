@@ -30,10 +30,12 @@ Milestone M1 (vertical slice) is in progress. What exists today:
   requirement's quote and section number, with every case a proposal until a person reviews it;
 - the traceability matrix, derived from the register and the case set alone, with gaps, orphan
   cases and the human decision queue visible in `matrix.html`;
-- `run`, which does all of the above and replays offline from the committed cache.
+- `run`, which does all of the above and replays offline from the committed cache;
+- the committed reference run in `runs/reference/`, which CI regenerates offline on Linux and
+  Windows and compares byte for byte.
 
-Not implemented yet, each with its own task: the CI end-to-end run and the committed reference
-run, then the review UI, scoring and the baseline in the next milestone.
+Not implemented yet, each with its own task in the next milestone: the review UI, scoring and
+the baseline.
 
 ## Prerequisites
 
@@ -41,25 +43,59 @@ run, then the review UI, scoring and the baseline in the next milestone.
   targets `net10.0`, set once in `Directory.Build.props`.
 - Nothing else. No database, no container runtime, no API key.
 
+## Reproduce
+
+From the repository root, in any shell, with no API key and no network access to the model
+provider:
+
+```
+dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline --out runs/reference
+```
+
+Every model call is replayed from `cache/`, and the committed reference run is rewritten in
+place. Afterwards `git status` shows only `runs/reference/manifest.json` as changed, and
+`git diff` shows only its `started_at` and `git_sha` lines: when the run started and which
+commit built it. Every other byte is what was committed. CI runs this same command on Linux and
+Windows after `tests/SpecTrace.Pipeline.Tests/OfflineEndToEndTests.cs` has compared a fresh
+offline run with `runs/reference/`, file by file and byte by byte.
+
+### Changing the reference run on purpose
+
+The reference run only ever changes as a reviewed diff in a PR.
+
+1. Changing anything a model request is built from (a prompt file, the model, a schema, the
+   corpus, or the text of a requirement) makes the command above fail with a cache miss. The
+   error names the call, the prompt file and the missing cache entry. Record the new responses
+   with one online run, with `GEMINI_API_KEY` set:
+   `dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt`. It writes to
+   `runs/{runId}/`, which git ignores.
+2. Changing deterministic processing alone makes the offline end-to-end test fail on the first
+   file that differs.
+3. In both cases, run the command above, review `git diff -- runs/reference cache`, and commit
+   both in the PR, saying why the output changed. Never edit `runs/reference/` by hand. Always
+   write it with the offline command, so that its manifest records every call as a cache hit.
+
 ## Commands
 
 Working today:
 
 ```
 dotnet build --warnaserror     # must stay at 0 warnings, 0 errors
-dotnet test                    # unit tests, invariants, and the offline replay of the committed cache
+dotnet test                    # unit tests, invariants, and the offline end-to-end run against runs/reference
 
 # the whole pipeline, replayed from cache/ — no key, no network
-SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt
+dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline
 
 # extraction and verification only
-SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- extract --document corpus/rfc6902.txt
+dotnet run --project src/SpecTrace.Cli -- extract --document corpus/rfc6902.txt --offline
 ```
 
-`run` writes `requirements.json`, `rejected-quotes.json`, `decisions.json`, `test-cases.json`,
-`matrix.json` and `matrix.html` under `runs/{runId}/`; `extract` writes the first three.
-Without `SPECTRACE_OFFLINE` either command calls Gemini for any request not already in
-`cache/`, which needs `GEMINI_API_KEY` set in the environment.
+`--offline` and `SPECTRACE_OFFLINE=1` are equivalent; the flag works the same way in every
+shell. `run` writes `manifest.json`, `requirements.json`, `rejected-quotes.json`,
+`decisions.json`, `test-cases.json`, `matrix.json` and `matrix.html` under `runs/{runId}/`, or
+under `--out`. `extract` writes `requirements.json`, `rejected-quotes.json` and
+`decisions.json`. Without `--offline` or `SPECTRACE_OFFLINE=1`, either command calls Gemini for
+any request not already in `cache/`, which needs `GEMINI_API_KEY` set in the environment.
 
 `matrix.html` is a static page. Coverage in it is by proposed, unreviewed test cases, and it
 does not claim the specification is fully covered: only that each requirement in the register
@@ -82,8 +118,9 @@ src/SpecTrace.Pipeline/    orchestration of the two halves, prompt files
 src/SpecTrace.Cli/         thin entry point: run and extract today; score, export later
 tests/SpecTrace.Core.Tests/       unit tests for the core
 tests/SpecTrace.Llm.Tests/        client, cache and backoff, all against fakes; one live check
-tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline replay of the committed cache
+tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline end-to-end run against runs/reference
 cache/                     committed LLM response cache
+runs/reference/            committed reference run; every other run under runs/ is ignored
 ```
 
 `SpecTrace.Web` (the review UI) belongs to the next milestone and does not exist yet.

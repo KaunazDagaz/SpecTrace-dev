@@ -55,19 +55,31 @@ These hold regardless of model, document, or developer. They are the project's r
 Build:    dotnet build --warnaserror
 Test:     dotnet test
 Run:      dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt
-Offline:  SPECTRACE_OFFLINE=1 dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt
+Offline:  dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline
+Reproduce: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline --out runs/reference
 Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.json
 ```
 
-`Build`, `Test`, `Run` and `Offline` work today. `Score` is not implemented yet — the CLI
-prints usage and exits non-zero for it. It lands with its own task.
+`Build`, `Test`, `Run`, `Offline` and `Reproduce` work today. `Score` is not implemented yet —
+the CLI prints usage and exits non-zero for it. It lands with its own task.
 
-As of SPEC-4, `run` extracts, verifies, generates test cases for the requirements the model
-classified testable, and writes `requirements.json`, `rejected-quotes.json`, `decisions.json`,
-`test-cases.json`, `matrix.json` and `matrix.html` under `runs/{runId}/`. With
-`SPECTRACE_OFFLINE=1` it replays from `cache/` and needs no key. `dotnet test` includes that
-replay against the committed cache entries. `extract --document <path>` still does extraction
-and verification only.
+`run` extracts, verifies, generates test cases for the requirements the model classified
+testable, and writes `manifest.json`, `requirements.json`, `rejected-quotes.json`,
+`decisions.json`, `test-cases.json`, `matrix.json` and `matrix.html` under `runs/{runId}/`, or
+under `--out`. `--offline` and `SPECTRACE_OFFLINE=1` are equivalent: the run replays from
+`cache/`, needs no key, and a cache miss is an error that names the missing request, never a
+network call. Use the flag in anything a reader types, because it works in every shell.
+`extract --document <path>` still does extraction and verification only.
+
+As of SPEC-5, `runs/reference/` holds the committed reference run.
+`tests/SpecTrace.Pipeline.Tests/OfflineEndToEndTests.cs` regenerates it offline, with an HTTP
+handler that refuses every request, and compares every file byte for byte. The only exclusions
+are `started_at` and `git_sha` in `manifest.json`. Do not add to that list to get a test
+passing. CI runs the README `Reproduce` command verbatim on ubuntu-latest and windows-latest;
+`ReproductionDocsTests` fails if the README and `ci.yml` disagree. When the output is meant to
+change, follow README "Changing the reference run on purpose": record any new cache entries
+with one online run to `runs/{runId}/`, then rewrite `runs/reference/` with the `Reproduce`
+command and commit that diff, with the reason, in the PR. Never edit `runs/reference/` by hand.
 
 A live call needs `GEMINI_API_KEY` in the environment — the Windows user environment or the
 shell, never a file in this repository, `.env` included. `tests/SpecTrace.Llm.Tests` holds one
@@ -77,7 +89,10 @@ present, every `dotnet test` spends one real request from the daily quota on tha
 `corpus/rfc6902.txt` is in the repository as of SPEC-2. `.gitattributes` marks `corpus/**` as
 `-text` so git performs no end-of-line conversion on it: the file is LF on every platform, and
 the character offsets the offset map and section index are tested against are identical on
-Windows and on CI. Do not remove that rule, and do not re-save the corpus with CRLF.
+Windows and on CI. Do not remove that rule, and do not re-save the corpus with CRLF. As of
+SPEC-5 the same rule covers `cache/**` and `runs/reference/**`, because Git for Windows would
+otherwise convert them to CRLF on checkout and break the byte comparison. The pipeline writes
+LF on every platform.
 
 ---
 

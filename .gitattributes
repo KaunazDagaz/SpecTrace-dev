@@ -1,3 +1,5 @@
 corpus/** -text
+cache/** -text
+runs/reference/** -text
 
 src/SpecTrace.Pipeline/Prompts/** -text

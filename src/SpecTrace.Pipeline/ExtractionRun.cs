@@ -11,15 +11,17 @@ public static class ExtractionRun
         string documentPath,
         ILlmClient client,
         string model,
+        PromptFile prompt,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(documentPath);
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        ArgumentNullException.ThrowIfNull(prompt);
 
         var raw = await File.ReadAllTextAsync(documentPath, cancellationToken).ConfigureAwait(false);
 
-        return await ExecuteAsync(DocumentIdFor(documentPath), raw, client, model, cancellationToken)
+        return await ExecuteAsync(DocumentIdFor(documentPath), raw, client, model, prompt, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -28,14 +30,16 @@ public static class ExtractionRun
         string raw,
         ILlmClient client,
         string model,
+        PromptFile prompt,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(documentId);
         ArgumentNullException.ThrowIfNull(raw);
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        ArgumentNullException.ThrowIfNull(prompt);
 
-        var extraction = await new RequirementExtractor(client, model)
+        var extraction = await new RequirementExtractor(client, model, prompt: prompt)
             .ExtractAsync(documentId, raw, cancellationToken)
             .ConfigureAwait(false);
 
@@ -46,7 +50,7 @@ public static class ExtractionRun
             .Verify(extraction.Candidates);
 
         return new ExtractionRunResult(
-            RunIdFor(documentId, raw, model),
+            RunIdFor(documentId, raw, model, prompt),
             documentId,
             extraction.Candidates,
             outcome,
@@ -55,9 +59,11 @@ public static class ExtractionRun
 
     public static string DocumentIdFor(string documentPath) => Path.GetFileNameWithoutExtension(documentPath);
 
-    public static string RunIdFor(string documentId, string rawDocument, string model)
+    public static string RunIdFor(string documentId, string rawDocument, string model, PromptFile prompt)
     {
-        var material = $"{model}\n{PromptFile.Extraction.Sha256}\n{rawDocument}";
+        ArgumentNullException.ThrowIfNull(prompt);
+
+        var material = $"{model}\n{prompt.Sha256}\n{rawDocument}";
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(material)));
 
         return $"{documentId}-{hash[..12]}";

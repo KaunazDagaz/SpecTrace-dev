@@ -166,25 +166,16 @@ public sealed class CachingLlmClientTests
         Assert.Equal(0, inner.Calls);
     }
 
-    [Fact]
-    public void OfflineModeIsOffWhenTheEnvironmentVariableIsUnsetAndOnWhenItIsSetToOne()
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("0", false)]
+    [InlineData("false", false)]
+    [InlineData("FALSE", false)]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    public void OfflineModeIsOnOnlyWhenTheVariableIsSetToSomethingOtherThanZeroOrFalse(string? value, bool offline)
     {
-        var original = Environment.GetEnvironmentVariable(CachingLlmClient.OfflineVariable);
-
-        try
-        {
-            Environment.SetEnvironmentVariable(CachingLlmClient.OfflineVariable, null);
-            Assert.False(CachingLlmClient.OfflineFromEnvironment());
-
-            Environment.SetEnvironmentVariable(CachingLlmClient.OfflineVariable, "1");
-            Assert.True(CachingLlmClient.OfflineFromEnvironment());
-
-            Environment.SetEnvironmentVariable(CachingLlmClient.OfflineVariable, "0");
-            Assert.False(CachingLlmClient.OfflineFromEnvironment());
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(CachingLlmClient.OfflineVariable, original);
-        }
+        Assert.Equal(offline, CachingLlmClient.IsOffline(value));
     }
 }

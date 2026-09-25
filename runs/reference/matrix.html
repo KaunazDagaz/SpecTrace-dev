@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Traceability matrix: rfc6902</title>
+<style>
+body { font-family: sans-serif; margin: 1.5rem; line-height: 1.4; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
+th, td { border: 1px solid #999; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; }
+.notice { border: 2px solid #333; padding: 0.5rem 0.75rem; }
+#decision-queue { border: 3px solid #b35900; background: #fff3e0; padding: 0 1rem; margin-bottom: 1.5rem; }
+tr.gap { background: #ffdede; }
+td.gap { font-weight: bold; color: #a00000; }
+</style>
+</head>
+<body>
+<h1>Traceability matrix: rfc6902</h1>
+<div class="notice">
+<p><strong>Coverage here is by proposed, unreviewed test cases.</strong> 23 of the 23 test cases have not been reviewed by a person. A model wrote every case from one requirement's quote and section number alone.</p>
+<p><strong>This matrix does not claim that the specification is fully covered.</strong> It shows only whether each requirement in the register has a proposed case. A requirement the extraction did not find is not in the register and cannot appear here.</p>
+</div>
+<ul>
+<li>Requirements in the register: 12</li>
+<li>Covered by at least one proposed test case: 11</li>
+<li><a href="#matrix"><strong>Gaps: 1</strong></a> (requirements with no test case)</li>
+<li>Marked not testable or deferred by a person: 0</li>
+<li><a href="#decision-queue"><strong>Items in the decision queue: 4</strong></a></li>
+<li><a href="#orphans">Orphan test cases: 0</a></li>
+<li><a href="#cases">Proposed test cases: 23</a></li>
+</ul>
+<section id="decision-queue">
+<h2>Decision queue: 4 items for a person</h2>
+<p>The system is not allowed to decide these alone. Each item is a question, not an answer.</p>
+<table>
+<thead><tr><th>Item</th><th>Section</th><th>Quote</th><th>Reason</th><th>Model's note</th><th>Question</th></tr></thead>
+<tbody>
+<tr><td>DQ-rfc6902-1dd2c2</td><td>(multiple locations)</td><td>The target location MUST exist for the operation to be successful.</td><td>quote_found_more_than_once</td><td></td><td>This quote occurs more than once in the document, so no single span can be claimed for it. Which occurrence is meant, or should it be dropped?</td></tr>
+<tr><td>DQ-rfc6902-0886b2</td><td>(multiple locations)</td><td>The &quot;from&quot; location MUST exist for the operation to be successful.</td><td>quote_found_more_than_once</td><td></td><td>This quote occurs more than once in the document, so no single span can be claimed for it. Which occurrence is meant, or should it be dropped?</td></tr>
+<tr><td>DQ-rfc6902-3bbcaf</td><td>5</td><td>If a normative requirement is violated by a JSON Patch document, or if an operation is not successful, evaluation of the JSON Patch document SHOULD terminate and application of the entire patch document SHALL NOT be deemed successful.</td><td>same_quote_claimed_with_different_readings</td><td></td><td>The model claimed this quote 2 times with different readings: SHOULD (testable), MUST_NOT (testable). A sentence can carry more than one obligation. Which of these readings apply?</td></tr>
+<tr><td>DQ-rfc6902-5a829e<br>REQ-rfc6902-5a829e</td><td>4.1</td><td>When the operation is applied, the target location MUST reference one of:</td><td>generation_blocked</td><td>The requirement quote is incomplete and cuts off before specifying what the target location must reference, making it impossible to derive meaningful test cases.</td><td>The model wrote no test case from this quote and gave the reason recorded with this item. The requirement stays a gap until a person decides: can a case be written from the quote, is it not testable, or should it be deferred?</td></tr>
+</tbody>
+</table>
+</section>
+<h2 id="matrix">Matrix</h2>
+<p>One row per requirement in the register, in the order the requirements appear in the document.</p>
+<table>
+<thead><tr><th>Requirement</th><th>Section</th><th>Modality</th><th>Quote</th><th>Proposed test cases</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>REQ-rfc6902-07e6ff</td><td>4</td><td>MUST</td><td>Operation objects MUST have exactly one &quot;op&quot; member, whose value indicates the operation to perform.</td><td>TC-07e6ff-01 (positive)<br>TC-07e6ff-02 (negative)<br>TC-07e6ff-03 (negative)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-1d542c</td><td>4</td><td>MUST</td><td>Its value MUST be one of &quot;add&quot;, &quot;remove&quot;, &quot;replace&quot;, &quot;move&quot;, &quot;copy&quot;, or &quot;test&quot;; other values are errors.</td><td>TC-1d542c-01 (positive)<br>TC-1d542c-02 (negative)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-3d4323</td><td>4</td><td>MUST</td><td>Additionally, operation objects MUST have exactly one &quot;path&quot; member.</td><td>TC-3d4323-01 (positive)<br>TC-3d4323-02 (negative)<br>TC-3d4323-03 (negative)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-6b9d3a</td><td>4</td><td>MUST</td><td>Members that are not explicitly defined for the operation in question MUST be ignored (i.e., the operation will complete as if the undefined member did not appear in the object).</td><td>TC-6b9d3a-01 (positive)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-c2cc75</td><td>4.1</td><td>MUST</td><td>The operation object MUST contain a &quot;value&quot; member whose content specifies the value to be added.</td><td>TC-c2cc75-01 (positive)<br>TC-c2cc75-02 (negative)</td><td>covered</td></tr>
+<tr class="gap"><td>REQ-rfc6902-5a829e</td><td>4.1</td><td>MUST</td><td>When the operation is applied, the target location MUST reference one of:</td><td>none</td><td class="gap">GAP<br>see DQ-rfc6902-5a829e</td></tr>
+<tr><td>REQ-rfc6902-d6485b</td><td>4.1</td><td>MUST</td><td>The specified index MUST NOT be greater than the number of elements in the array.</td><td>TC-d6485b-01 (positive)<br>TC-d6485b-02 (negative)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-cd65df</td><td>4.4</td><td>MUST</td><td>The operation object MUST contain a &quot;from&quot; member, which is a string containing a JSON Pointer value that references the location in the target document to move the value from.</td><td>TC-cd65df-01 (positive)<br>TC-cd65df-02 (negative)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-a4a8ae</td><td>4.4</td><td>MUST</td><td>The &quot;from&quot; location MUST NOT be a proper prefix of the &quot;path&quot; location; i.e., a location cannot be moved into one of its children.</td><td>TC-a4a8ae-01 (negative)<br>TC-a4a8ae-02 (positive)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-f74ad5</td><td>4.5</td><td>MUST</td><td>The operation object MUST contain a &quot;from&quot; member, which is a string containing a JSON Pointer value that references the location in the target document to copy the value from.</td><td>TC-f74ad5-01 (positive)<br>TC-f74ad5-02 (negative)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-7fc509</td><td>4.6</td><td>MUST</td><td>The operation object MUST contain a &quot;value&quot; member that conveys the value to be compared to the target location&#39;s value.</td><td>TC-7fc509-01 (positive)<br>TC-7fc509-02 (negative)</td><td>covered</td></tr>
+<tr><td>REQ-rfc6902-399ed7</td><td>4.6</td><td>MUST</td><td>The target location MUST be equal to the &quot;value&quot; value for the operation to be considered successful.</td><td>TC-399ed7-01 (positive)<br>TC-399ed7-02 (negative)</td><td>covered</td></tr>
+</tbody>
+</table>
+<h2 id="orphans">Orphan test cases: 0</h2>
+<p>None. Every test case names only requirements that are in the register.</p>
+<h2 id="cases">Proposed test cases: 23</h2>
+<table>
+<thead><tr><th>Test case</th><th>Requirement</th><th>Type</th><th>Title</th><th>Precondition</th><th>Input</th><th>Expected result</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>TC-07e6ff-01</td><td>REQ-rfc6902-07e6ff</td><td>positive</td><td>Provide operation object with exactly one op member</td><td>An operation object is being constructed.</td><td>{&quot;op&quot;: &quot;add&quot;}</td><td>The operation object is accepted as valid regarding the &#39;op&#39; member requirement.</td><td>proposed</td></tr>
+<tr><td>TC-07e6ff-02</td><td>REQ-rfc6902-07e6ff</td><td>negative</td><td>Provide operation object with zero op members</td><td>An operation object is being constructed.</td><td>{}</td><td>The operation object is rejected for failing to have exactly one &#39;op&#39; member.</td><td>proposed</td></tr>
+<tr><td>TC-07e6ff-03</td><td>REQ-rfc6902-07e6ff</td><td>negative</td><td>Provide operation object with multiple op members</td><td>An operation object is being constructed.</td><td>{&quot;op&quot;: &quot;add&quot;, &quot;op&quot;: &quot;replace&quot;}</td><td>The operation object is rejected for failing to have exactly one &#39;op&#39; member.</td><td>proposed</td></tr>
+<tr><td>TC-1d542c-01</td><td>REQ-rfc6902-1d542c</td><td>positive</td><td>Use a valid value</td><td>A system processing values according to section 4 is running</td><td>add</td><td>The value is accepted as valid without error.</td><td>proposed</td></tr>
+<tr><td>TC-1d542c-02</td><td>REQ-rfc6902-1d542c</td><td>negative</td><td>Use an invalid value</td><td>A system processing values according to section 4 is running</td><td>invalid_value</td><td>The value is recognized as an error.</td><td>proposed</td></tr>
+<tr><td>TC-3d4323-01</td><td>REQ-rfc6902-3d4323</td><td>positive</td><td>Verify operation object with exactly one path member is valid</td><td>An operation object is being defined</td><td>An operation object containing one &quot;path&quot; member</td><td>The operation object is accepted as valid regarding the path requirement</td><td>proposed</td></tr>
+<tr><td>TC-3d4323-02</td><td>REQ-rfc6902-3d4323</td><td>negative</td><td>Verify operation object with no path member is invalid</td><td>An operation object is being defined</td><td>An operation object containing zero &quot;path&quot; members</td><td>The operation object is rejected as invalid</td><td>proposed</td></tr>
+<tr><td>TC-3d4323-03</td><td>REQ-rfc6902-3d4323</td><td>negative</td><td>Verify operation object with multiple path members is invalid</td><td>An operation object is being defined</td><td>An operation object containing two &quot;path&quot; members</td><td>The operation object is rejected as invalid</td><td>proposed</td></tr>
+<tr><td>TC-6b9d3a-01</td><td>REQ-rfc6902-6b9d3a</td><td>positive</td><td>Operation completes ignoring undefined member</td><td>An operation is defined with specific members.</td><td>An object containing a member explicitly defined for the operation and an undefined member.</td><td>The operation completes successfully as if the undefined member did not appear in the object.</td><td>proposed</td></tr>
+<tr><td>TC-c2cc75-01</td><td>REQ-rfc6902-c2cc75</td><td>positive</td><td>Include value member in operation object</td><td>An operation object is being constructed.</td><td>Operation object containing a &#39;value&#39; member with content specifying the value to be added.</td><td>The operation object is valid and contains the &#39;value&#39; member.</td><td>proposed</td></tr>
+<tr><td>TC-c2cc75-02</td><td>REQ-rfc6902-c2cc75</td><td>negative</td><td>Omit value member from operation object</td><td>An operation object is being constructed.</td><td>Operation object without the &#39;value&#39; member.</td><td>The operation object is invalid because it lacks the mandatory &#39;value&#39; member.</td><td>proposed</td></tr>
+<tr><td>TC-d6485b-01</td><td>REQ-rfc6902-d6485b</td><td>positive</td><td>Access array with an index equal to the number of elements</td><td>An array has a specific number of elements.</td><td>Specify an index equal to the number of elements in the array.</td><td>The index is accepted as valid without error.</td><td>proposed</td></tr>
+<tr><td>TC-d6485b-02</td><td>REQ-rfc6902-d6485b</td><td>negative</td><td>Attempt to use an index greater than the number of elements</td><td>An array has a specific number of elements.</td><td>Specify an index greater than the number of elements in the array.</td><td>The operation is rejected or fails due to the index exceeding the element count.</td><td>proposed</td></tr>
+<tr><td>TC-cd65df-01</td><td>REQ-rfc6902-cd65df</td><td>positive</td><td>Include a valid from member with a JSON Pointer string</td><td>An operation object is being constructed.</td><td>An operation object containing &quot;from&quot;: &quot;/pointer/location&quot;</td><td>The operation object is valid and contains the required &quot;from&quot; member referencing the source location.</td><td>proposed</td></tr>
+<tr><td>TC-cd65df-02</td><td>REQ-rfc6902-cd65df</td><td>negative</td><td>Omit the mandatory from member</td><td>An operation object is being constructed.</td><td>An operation object missing the &quot;from&quot; member</td><td>The operation object is considered invalid due to the missing mandatory &quot;from&quot; member.</td><td>proposed</td></tr>
+<tr><td>TC-a4a8ae-01</td><td>REQ-rfc6902-a4a8ae</td><td>negative</td><td>Prevent moving a location into one of its children</td><td>A location exists at &quot;/a/b&quot; and a child location exists at &quot;/a/b/c&quot;.</td><td>Attempt to move the &quot;from&quot; location &quot;/a/b&quot; to the &quot;path&quot; location &quot;/a/b/c&quot;.</td><td>The operation is rejected because the &quot;from&quot; location is a proper prefix of the &quot;path&quot; location.</td><td>proposed</td></tr>
+<tr><td>TC-a4a8ae-02</td><td>REQ-rfc6902-a4a8ae</td><td>positive</td><td>Allow moving a location to a non-prefix path</td><td>A location exists at &quot;/a/b&quot; and another location exists at &quot;/c/d&quot;.</td><td>Attempt to move the &quot;from&quot; location &quot;/a/b&quot; to the &quot;path&quot; location &quot;/c/d&quot;.</td><td>The operation is allowed because the &quot;from&quot; location is not a proper prefix of the &quot;path&quot; location.</td><td>proposed</td></tr>
+<tr><td>TC-f74ad5-01</td><td>REQ-rfc6902-f74ad5</td><td>positive</td><td>Include from member with a JSON Pointer string</td><td>An operation object is constructed for a target document.</td><td>Operation object containing &quot;from&quot;: &quot;/path/to/value&quot;</td><td>The operation object is accepted as valid regarding the &quot;from&quot; requirement.</td><td>proposed</td></tr>
+<tr><td>TC-f74ad5-02</td><td>REQ-rfc6902-f74ad5</td><td>negative</td><td>Omit from member from the operation object</td><td>An operation object is constructed for a target document.</td><td>Operation object missing the &quot;from&quot; member</td><td>The operation object is rejected as invalid because it lacks the mandatory &quot;from&quot; member.</td><td>proposed</td></tr>
+<tr><td>TC-7fc509-01</td><td>REQ-rfc6902-7fc509</td><td>positive</td><td>Include value member in operation object</td><td>An operation object is being constructed.</td><td>An operation object containing a &quot;value&quot; member.</td><td>The operation object is valid and successfully conveys the value to be compared.</td><td>proposed</td></tr>
+<tr><td>TC-7fc509-02</td><td>REQ-rfc6902-7fc509</td><td>negative</td><td>Omit value member from operation object</td><td>An operation object is being constructed.</td><td>An operation object lacking the &quot;value&quot; member.</td><td>The operation is considered invalid because the &quot;value&quot; member is required.</td><td>proposed</td></tr>
+<tr><td>TC-399ed7-01</td><td>REQ-rfc6902-399ed7</td><td>positive</td><td>Perform operation where target location equals the value value</td><td>An operation is initialized with a target location and a &#39;value&#39; value.</td><td>Target location matches the &#39;value&#39; value.</td><td>The operation is considered successful.</td><td>proposed</td></tr>
+<tr><td>TC-399ed7-02</td><td>REQ-rfc6902-399ed7</td><td>negative</td><td>Perform operation where target location does not equal the value value</td><td>An operation is initialized with a target location and a &#39;value&#39; value.</td><td>Target location does not match the &#39;value&#39; value.</td><td>The operation is not considered successful.</td><td>proposed</td></tr>
+</tbody>
+</table>
+</body>
+</html>

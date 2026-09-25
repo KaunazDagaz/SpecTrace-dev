@@ -35,7 +35,15 @@ public sealed class PromptFile
                 $"Prompt '{name}' is not embedded in {assembly.GetName().Name}. Expected resource "
                 + $"'{resource}'. Available: {string.Join(", ", assembly.GetManifestResourceNames())}");
 
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return Read(name, stream);
+    }
+
+    public static PromptFile Read(string name, Stream content)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(content);
+
+        using var reader = new StreamReader(content, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         var text = Normalize(reader.ReadToEnd());
 
         return new PromptFile(name, text, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text))));

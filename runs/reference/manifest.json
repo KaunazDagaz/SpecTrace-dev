@@ -1,0 +1,14 @@
+{
+  "run_id": "rfc6902-3ff2234db6aa",
+  "document_id": "rfc6902",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash-lite",
+  "temperature": 0,
+  "started_at": "2026-09-24T13:08:30.3300697+00:00",
+  "prompt_count": 13,
+  "cache_hits": 13,
+  "input_tokens": 11708,
+  "output_tokens": 3374,
+  "pipeline_version": "1.0.0",
+  "git_sha": "9e37019ee5403e9a85b82fd3a8bcc8e7efc4251e"
+}

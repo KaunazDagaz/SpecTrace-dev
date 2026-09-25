@@ -1,0 +1,170 @@
+[
+  {
+    "id": "REQ-rfc6902-07e6ff",
+    "document_id": "rfc6902",
+    "section": "4",
+    "modality": "MUST",
+    "text": "Operation objects MUST have exactly one \"op\" member, whose value indicates the operation to perform.",
+    "span": {
+      "start": 7222,
+      "end": 7325
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-1d542c",
+    "document_id": "rfc6902",
+    "section": "4",
+    "modality": "MUST",
+    "text": "Its value MUST be one of \"add\", \"remove\", \"replace\", \"move\", \"copy\", or \"test\"; other values are errors.",
+    "span": {
+      "start": 7327,
+      "end": 7437
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-3d4323",
+    "document_id": "rfc6902",
+    "section": "4",
+    "modality": "MUST",
+    "text": "Additionally, operation objects MUST have exactly one \"path\" member.",
+    "span": {
+      "start": 7490,
+      "end": 7558
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-6b9d3a",
+    "document_id": "rfc6902",
+    "section": "4",
+    "modality": "MUST",
+    "text": "Members that are not explicitly defined for the operation in question MUST be ignored (i.e., the operation will complete as if the undefined member did not appear in the object).",
+    "span": {
+      "start": 7863,
+      "end": 8050
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-c2cc75",
+    "document_id": "rfc6902",
+    "section": "4.1",
+    "modality": "MUST",
+    "text": "The operation object MUST contain a \"value\" member whose content specifies the value to be added.",
+    "span": {
+      "start": 9160,
+      "end": 9260
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-5a829e",
+    "document_id": "rfc6902",
+    "section": "4.1",
+    "modality": "MUST",
+    "text": "When the operation is applied, the target location MUST reference one of:",
+    "span": {
+      "start": 9347,
+      "end": 9423
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-d6485b",
+    "document_id": "rfc6902",
+    "section": "4.1",
+    "modality": "MUST",
+    "text": "The specified index MUST NOT be greater than the number of elements in the array.",
+    "span": {
+      "start": 9991,
+      "end": 10078
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-cd65df",
+    "document_id": "rfc6902",
+    "section": "4.4",
+    "modality": "MUST",
+    "text": "The operation object MUST contain a \"from\" member, which is a string containing a JSON Pointer value that references the location in the target document to move the value from.",
+    "span": {
+      "start": 12117,
+      "end": 12299
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-a4a8ae",
+    "document_id": "rfc6902",
+    "section": "4.4",
+    "modality": "MUST",
+    "text": "The \"from\" location MUST NOT be a proper prefix of the \"path\" location; i.e., a location cannot be moved into one of its children.",
+    "span": {
+      "start": 12805,
+      "end": 12938
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-f74ad5",
+    "document_id": "rfc6902",
+    "section": "4.5",
+    "modality": "MUST",
+    "text": "The operation object MUST contain a \"from\" member, which is a string containing a JSON Pointer value that references the location in the target document to copy the value from.",
+    "span": {
+      "start": 13048,
+      "end": 13230
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-7fc509",
+    "document_id": "rfc6902",
+    "section": "4.6",
+    "modality": "MUST",
+    "text": "The operation object MUST contain a \"value\" member that conveys the value to be compared to the target location's value.",
+    "span": {
+      "start": 13634,
+      "end": 13757
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  },
+  {
+    "id": "REQ-rfc6902-399ed7",
+    "document_id": "rfc6902",
+    "section": "4.6",
+    "modality": "MUST",
+    "text": "The target location MUST be equal to the \"value\" value for the operation to be considered successful.",
+    "span": {
+      "start": 13762,
+      "end": 13866
+    },
+    "testability": "testable",
+    "testability_note": null,
+    "verification": "exact"
+  }
+]

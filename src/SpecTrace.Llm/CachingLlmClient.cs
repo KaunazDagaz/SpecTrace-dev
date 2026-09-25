@@ -4,7 +4,7 @@ namespace SpecTrace.Llm;
 
 public sealed class CachingLlmClient : ILlmClient
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true, NewLine = "\n" };
 
     private readonly ILlmClient _inner;
     private readonly string _cacheDirectory;
@@ -28,14 +28,10 @@ public sealed class CachingLlmClient : ILlmClient
 
     public const string OfflineVariable = "SPECTRACE_OFFLINE";
 
-    public static bool OfflineFromEnvironment()
-    {
-        var value = Environment.GetEnvironmentVariable(OfflineVariable);
-
-        return !string.IsNullOrWhiteSpace(value)
-            && !string.Equals(value, "0", StringComparison.Ordinal)
-            && !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
-    }
+    public static bool IsOffline(string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && !string.Equals(value, "0", StringComparison.Ordinal)
+        && !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
 
     public async Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken cancellationToken)
     {
@@ -57,7 +53,7 @@ public sealed class CachingLlmClient : ILlmClient
 
         if (_offline)
         {
-            throw new OfflineCacheMissException(key, path);
+            throw new OfflineCacheMissException(key, path, request.Model, request.PromptSha256);
         }
 
         var response = await _inner.CompleteAsync(request, cancellationToken).ConfigureAwait(false);

@@ -40,14 +40,78 @@ internal sealed class ScriptedLlmClient : ILlmClient
 
 internal sealed class NoNetworkHandler : HttpMessageHandler
 {
-    public int Attempts { get; private set; }
+    private readonly List<string> _attempted = [];
+
+    public int Attempts => _attempted.Count;
+
+    public IReadOnlyList<string> Attempted => _attempted;
 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        Attempts++;
-        throw new HttpRequestException("No network: this handler refuses every request.");
+        var target = $"{request.Method} {request.RequestUri}";
+        _attempted.Add(target);
+
+        throw new NetworkRefusedException(target);
+    }
+}
+
+internal sealed class NetworkRefusedException : Exception
+{
+    public NetworkRefusedException(string target)
+        : base($"No network: a request to {target} was attempted, and this handler refuses every request.")
+    {
+    }
+}
+
+internal static class Repository
+{
+    public static readonly string Root = FindRoot();
+
+    public static string PathTo(params string[] segments) =>
+        System.IO.Path.Combine([Root, .. segments]);
+
+    private static string FindRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null)
+        {
+            if (File.Exists(System.IO.Path.Combine(directory.FullName, "SpecTrace.sln")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException(
+            $"Could not find SpecTrace.sln above '{AppContext.BaseDirectory}'.");
+    }
+}
+
+internal static class CoreIsolation
+{
+    public const string LlmAssemblyName = "SpecTrace.Llm";
+
+    public static void AssertTheCoreProjectFileDeclaresNoLlmDependency()
+    {
+        var references = File.ReadAllLines(Repository.PathTo("src", "SpecTrace.Core", "SpecTrace.Core.csproj"))
+            .Where(line => line.Contains("Reference", StringComparison.Ordinal))
+            .Where(line => line.Contains(LlmAssemblyName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        Assert.Empty(references);
+    }
+
+    public static void AssertTheCompiledCoreAssemblyReferencesNoLlmAssembly()
+    {
+        var referenced = typeof(TextSpan).Assembly
+            .GetReferencedAssemblies()
+            .Select(assembly => assembly.Name ?? string.Empty);
+
+        Assert.DoesNotContain(LlmAssemblyName, referenced);
     }
 }
 
