@@ -43,6 +43,16 @@ jobs:
       - name: Reproduce the reference run with the README command
         run: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline --out runs/reference
 
+      - name: Recompute the headline table and every metrics file offline from the cache and the transcripts
+        run: dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt
+
+      - name: Fail if the recomputed experiments differ from the committed ones
+        shell: bash
+        run: |
+          git status --porcelain -- experiments
+          git diff --exit-code -- experiments
+          test -z "$(git status --porcelain -- experiments)"
+
       - name: Upload the regenerated run
         uses: actions/upload-artifact@v4
         with:
