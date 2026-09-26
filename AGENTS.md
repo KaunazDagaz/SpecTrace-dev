@@ -57,11 +57,20 @@ Test:     dotnet test
 Run:      dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt
 Offline:  dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline
 Reproduce: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline --out runs/reference
+Baseline: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --arm baseline --offline
+Claims:   dotnet run --project src/SpecTrace.Cli -- score --claims experiments/a0/rfc6902.md --document corpus/rfc6902.txt
+Headline: dotnet run --project src/SpecTrace.Cli -- score --headline --documents <the list in experiments/headline.md>
 Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.json
 ```
 
-`Build`, `Test`, `Run`, `Offline` and `Reproduce` work today. `Score` is not implemented yet —
-the CLI prints usage and exits non-zero for it. It lands with its own task.
+Everything above works today except `Score` against a gold standard, which prints usage and
+exits non-zero until SPEC-12. `run --arm baseline` sends the one naive prompt in
+`Prompts/baseline.user.md` and scores the answer with the same verifier. `score --claims` scores
+an externally produced answer, such as a chat transcript, through the same parser and verifier.
+`score --headline` always replays from `cache/`, never calls the provider, and rewrites
+`experiments/headline.md` and every metrics file it names; CI runs the command written in that
+file and fails if anything under `experiments/` changes. Run it after anything that changes a
+figure, and commit the result.
 
 `run` extracts, verifies, generates test cases for the requirements the model classified
 testable, and writes `manifest.json`, `requirements.json`, `rejected-quotes.json`,
@@ -181,6 +190,7 @@ These run in CI against the committed cache. Do not merge with any of them red, 
 - No secrets in the repository. API keys come from environment variables only; `.env.example` holds names, never values.
 - `cache/` is committed on purpose. It is reproducibility evidence, not clutter — do not add it to `.gitignore`.
 - `runs/` is gitignored except the single reference run.
+- The gold standard in corpus/gold/ and the chat transcripts in experiments/a0/ are human-authored. The agent may load and validate them, but never creates, completes or edits them.
 
 ---
 
