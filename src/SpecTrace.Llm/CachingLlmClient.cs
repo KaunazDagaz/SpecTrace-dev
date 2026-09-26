@@ -48,7 +48,8 @@ public sealed class CachingLlmClient : ILlmClient
                 cached.Response.Text,
                 cached.Response.InputTokens,
                 cached.Response.OutputTokens,
-                FromCache: true);
+                FromCache: true,
+                cached.Response.FinishReason);
         }
 
         if (_offline)
@@ -105,7 +106,7 @@ public sealed class CachingLlmClient : ILlmClient
                 request.SystemPrompt,
                 request.UserPrompt,
                 request.JsonSchema),
-            new CachedResponse(response.Text, response.InputTokens, response.OutputTokens));
+            new CachedResponse(response.Text, response.InputTokens, response.OutputTokens, response.FinishReason));
 
         var temporary = $"{path}.{Environment.ProcessId}.tmp";
 

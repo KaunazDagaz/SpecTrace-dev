@@ -149,6 +149,52 @@ public sealed class GeminiLlmClientTests
     }
 
     [Fact]
+    public async Task AFreeTextAnswerCutShortIsReturnedWithTheReasonItStoppedSoTheCallerCanRecordIt()
+    {
+        const string Truncated = """
+            {
+              "candidates": [
+                { "content": { "parts": [ { "text": "1. The first requirement" } ] }, "finishReason": "MAX_TOKENS" }
+              ],
+              "usageMetadata": { "promptTokenCount": 9, "candidatesTokenCount": 4096 }
+            }
+            """;
+        var (client, _) = ClientFor(StubHttpMessageHandler.Json(HttpStatusCode.OK, Truncated));
+
+        var response = await client.CompleteAsync(Request(schema: null), CancellationToken.None);
+
+        Assert.Equal("1. The first requirement", response.Text);
+        Assert.Equal("MAX_TOKENS", response.FinishReason);
+        Assert.Equal(4096, response.OutputTokens);
+    }
+
+    [Fact]
+    public async Task TheReasonACompleteAnswerStoppedIsReadBack()
+    {
+        var (client, _) = ClientFor(StubHttpMessageHandler.Json(HttpStatusCode.OK, SuccessBody));
+
+        var response = await client.CompleteAsync(Request(), CancellationToken.None);
+
+        Assert.Equal(LlmResponse.CompleteFinishReason, response.FinishReason);
+    }
+
+    [Fact]
+    public async Task ARequestWithNoSystemPromptSendsNoSystemInstructionAndOneUserMessage()
+    {
+        var (client, handler) = ClientFor(StubHttpMessageHandler.Json(HttpStatusCode.OK, SuccessBody));
+
+        await client.CompleteAsync(Request(schema: null) with { SystemPrompt = string.Empty }, CancellationToken.None);
+
+        using var body = JsonDocument.Parse(handler.RequestBodies.Single());
+        var contents = body.RootElement.GetProperty("contents");
+
+        Assert.False(body.RootElement.TryGetProperty("systemInstruction", out _));
+        Assert.Equal(1, contents.GetArrayLength());
+        Assert.Equal("user", contents[0].GetProperty("role").GetString());
+        Assert.Equal("the document", contents[0].GetProperty("parts")[0].GetProperty("text").GetString());
+    }
+
+    [Fact]
     public async Task AResponseWithNoCandidatesIsReportedRatherThanTreatedAsAnEmptyAnswer()
     {
         var (client, _) = ClientFor(

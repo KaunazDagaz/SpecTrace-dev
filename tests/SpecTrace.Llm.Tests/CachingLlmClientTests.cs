@@ -150,6 +150,60 @@ public sealed class CachingLlmClientTests
     }
 
     [Fact]
+    public async Task TheReasonAnAnswerStoppedIsRecordedAndReplayedOffline()
+    {
+        using var directory = new TemporaryDirectory();
+        var inner = new RecordingLlmClient(answer: _ => new LlmResponse("cut short", 3, 5, FromCache: false, "MAX_TOKENS"));
+        await new CachingLlmClient(inner, directory.Path, offline: false)
+            .CompleteAsync(Request(jsonSchema: null), CancellationToken.None);
+
+        var replayed = await new CachingLlmClient(new UnreachableLlmClient(), directory.Path, offline: true)
+            .CompleteAsync(Request(jsonSchema: null), CancellationToken.None);
+
+        Assert.True(replayed.FromCache);
+        Assert.Equal("cut short", replayed.Text);
+        Assert.Equal("MAX_TOKENS", replayed.FinishReason);
+    }
+
+    [Fact]
+    public async Task AnEntryRecordedBeforeFinishReasonsWereKeptStillReplaysAndReportsNoReason()
+    {
+        using var directory = new TemporaryDirectory();
+        var client = new CachingLlmClient(new UnreachableLlmClient(), directory.Path, offline: true);
+        var key = CacheKey.For(Request());
+
+        await File.WriteAllTextAsync(
+            client.PathFor(key),
+            $$"""
+            {
+              "key": "{{key}}",
+              "createdAt": "2026-09-24T13:08:30+00:00",
+              "request": {
+                "model": "gemini-3.5-flash",
+                "temperature": 0,
+                "maxOutputTokens": 1024,
+                "promptSha256": "abc123",
+                "systemPrompt": "system",
+                "userPrompt": "user",
+                "jsonSchema": "{\"type\":\"ARRAY\"}"
+              },
+              "response": {
+                "text": "[]",
+                "inputTokens": 10,
+                "outputTokens": 2
+              }
+            }
+            """,
+            CancellationToken.None);
+
+        var response = await client.CompleteAsync(Request(), CancellationToken.None);
+
+        Assert.Equal("[]", response.Text);
+        Assert.Equal(10, response.InputTokens);
+        Assert.Null(response.FinishReason);
+    }
+
+    [Fact]
     public async Task ACorruptCacheEntryIsReportedRatherThanQuietlyRefetched()
     {
         using var directory = new TemporaryDirectory();
