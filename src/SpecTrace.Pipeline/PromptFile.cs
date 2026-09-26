@@ -23,6 +23,8 @@ public sealed class PromptFile
 
     public static PromptFile Generation { get; } = Load("generate.system.md");
 
+    public static PromptFile Baseline { get; } = Load("baseline.user.md");
+
     public static PromptFile Load(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
