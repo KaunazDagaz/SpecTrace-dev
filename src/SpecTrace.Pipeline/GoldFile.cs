@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using SpecTrace.Core;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
@@ -59,6 +60,27 @@ public static class GoldFile
         var result = await CheckAsync(goldPath, documentPath, frozenRulesCommit, cancellationToken).ConfigureAwait(false);
 
         return result.Standard ?? throw new InvalidGoldFileException(result.Problems);
+    }
+
+    public static async Task<string> DocumentIdOfAsync(string goldPath, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(goldPath);
+
+        var text = await File.ReadAllTextAsync(goldPath, cancellationToken).ConfigureAwait(false);
+
+        return Parse(text).Document;
+    }
+
+    public static async Task<GoldReference> LoadReferenceAsync(
+        string goldPath,
+        string documentPath,
+        string frozenRulesCommit,
+        CancellationToken cancellationToken)
+    {
+        var standard = await LoadAsync(goldPath, documentPath, frozenRulesCommit, cancellationToken).ConfigureAwait(false);
+        var bytes = await File.ReadAllBytesAsync(goldPath, cancellationToken).ConfigureAwait(false);
+
+        return new GoldReference(standard, Path.GetFileName(goldPath), Convert.ToHexStringLower(SHA256.HashData(bytes)));
     }
 
     private static AnnotatedCandidate Candidate(YamlNode node)
@@ -123,6 +145,20 @@ public static class GoldFile
     }
 
     private static int LineOf(Mark mark) => (int)mark.Line;
+}
+
+public sealed record GoldReference(GoldStandard Standard, string FileName, string Sha256)
+{
+    public string DocumentId => Standard.DocumentId;
+
+    public IReadOnlyList<GoldRequirement> Requirements => Standard.Requirements;
+
+    public static string Label(GoldRequirement requirement)
+    {
+        ArgumentNullException.ThrowIfNull(requirement);
+
+        return string.Create(CultureInfo.InvariantCulture, $"{requirement.Candidate}.{requirement.Obligation}");
+    }
 }
 
 public sealed class InvalidGoldFileException : Exception

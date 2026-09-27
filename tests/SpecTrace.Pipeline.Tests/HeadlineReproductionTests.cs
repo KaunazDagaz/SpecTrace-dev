@@ -4,15 +4,14 @@ namespace SpecTrace.Pipeline.Tests;
 
 public sealed class HeadlineReproductionTests
 {
+    private const string CommandStart = "dotnet run --project src/SpecTrace.Cli -- ";
+
     private static readonly string Experiments = Repository.PathTo("experiments");
 
     [Fact]
-    public async Task TheCommittedHeadlineAndEveryMetricsFileRegenerateOfflineByteForByte()
+    public async Task TheCommittedHeadlineAndEveryFileItGeneratesRegenerateOfflineByteForByte()
     {
         var command = CommittedCommand();
-        var documents = command[SpecTraceCli.HeadlineCommandPrefix.Length..]
-            .Split(',')
-            .Select(path => Repository.PathTo(path.Split('/')));
 
         using var scratch = new ScratchDirectory();
         var transcripts = Path.Combine(scratch.Path, "a0");
@@ -30,8 +29,7 @@ public sealed class HeadlineReproductionTests
 
         var exitCode = await SpecTraceCli.RunAsync(
             [
-                "score", SpecTraceCli.HeadlineFlag,
-                "--documents", string.Join(',', documents),
+                .. InRepository(command[CommandStart.Length..].Split(' ')),
                 "--cache", Repository.PathTo("cache"),
                 "--transcripts", transcripts,
                 "--out", scratch.Path,
@@ -48,11 +46,8 @@ public sealed class HeadlineReproductionTests
             var committed = await File.ReadAllTextAsync(Path.Combine(Experiments, file));
             var regenerated = await File.ReadAllTextAsync(Path.Combine(scratch.Path, file));
 
-            if (file == ExperimentArtifacts.HeadlineFile)
-            {
-                regenerated = string.Join('\n', regenerated.Split('\n').Select(line =>
-                    line.StartsWith(SpecTraceCli.HeadlineCommandPrefix, StringComparison.Ordinal) ? command : line));
-            }
+            regenerated = string.Join('\n', regenerated.Split('\n').Select(line =>
+                line.StartsWith(SpecTraceCli.HeadlineCommandPrefix, StringComparison.Ordinal) ? command : line));
 
             Assert.Equal(committed, regenerated);
         }
@@ -67,13 +62,35 @@ public sealed class HeadlineReproductionTests
     }
 
     [Fact]
-    public void EveryCommittedMetricsFileIsNamedInTheHeadlineSoNoneIsStale()
+    public void TheHeadlineIsRebuiltAgainstTheCommittedGoldStandard()
+    {
+        Assert.EndsWith($" {SpecTraceCli.GoldOption} corpus/gold/rfc6902.gold.yaml", CommittedCommand(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EveryCommittedMetricsAndQualityFileIsNamedInTheHeadlineSoNoneIsStale()
     {
         var headline = File.ReadAllText(Path.Combine(Experiments, ExperimentArtifacts.HeadlineFile));
 
-        foreach (var file in Directory.EnumerateFiles(Experiments, "*.metrics.json").Select(Path.GetFileName))
+        foreach (var file in Directory.EnumerateFiles(Experiments, "*.metrics.json")
+            .Concat(Directory.EnumerateFiles(Experiments, "*.quality.md"))
+            .Append(Path.Combine(Experiments, QualityReport.ChunkingFile))
+            .Select(Path.GetFileName))
         {
             Assert.Contains($"[{file}]({file})", headline, StringComparison.Ordinal);
+        }
+    }
+
+    private static IEnumerable<string> InRepository(string[] arguments)
+    {
+        for (var index = 0; index < arguments.Length; index++)
+        {
+            yield return arguments[index];
+
+            if (arguments[index] is "--documents" or SpecTraceCli.GoldOption)
+            {
+                yield return string.Join(',', arguments[++index].Split(',').Select(path => Repository.PathTo(path.Split('/'))));
+            }
         }
     }
 
@@ -83,7 +100,9 @@ public sealed class HeadlineReproductionTests
 
     private static List<string> GeneratedFiles(string directory) =>
         Directory.EnumerateFiles(directory, "*.metrics.json")
+            .Concat(Directory.EnumerateFiles(directory, "*.quality.md"))
             .Append(Path.Combine(directory, ExperimentArtifacts.HeadlineFile))
+            .Append(Path.Combine(directory, QualityReport.ChunkingFile))
             .Select(path => Path.GetFileName(path)!)
             .Order(StringComparer.Ordinal)
             .ToList();

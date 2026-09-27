@@ -5,7 +5,7 @@ This file is generated. The command below rebuilds it and every metrics file it 
 and fails if the result differs from what is committed. Do not edit it by hand.
 
 ```
-dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt,corpus/rfc10050.txt
+dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt,corpus/rfc10050.txt --gold corpus/gold/rfc6902.gold.yaml
 ```
 
 | Document | Arm | Model | Claims | Not located | Not found | No quote | Found once | Found more than once | Calls | Tokens in / out | Finish reason | Metrics file |
@@ -53,3 +53,65 @@ dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rf
   provider did. B's extraction is requested with a response schema, and a structured answer that stops
   for any other reason is refused and never cached; entries cached before finish reasons were kept
   show `not recorded`.
+
+## Extraction quality against the gold standard
+
+rfc6902 is scored against `rfc6902.gold.yaml`: 19 requirements annotated by hand under the annotation rules frozen at SpecTrace-docs commit `69ed50e`.
+rfc10050 has no gold standard and is not scored here.
+
+| Document | Arm | Claims | Matched | Through a quote found more than once | Located, no gold match | Not located | Precision | Recall | F1 | Modality accuracy |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| rfc6902 | A0 chat — illustrative, not reproducible | 18 | 17 | 4 | 1 | 0 | 94.4% (17/18) | 89.5% (17/19) | 91.9% | n/a: the arm states no modality |
+| rfc6902 | A baseline | 16 | 3 | 2 | 0 | 13 | 18.8% (3/16) | 15.8% (3/19) | 17.1% | n/a: the arm states no modality |
+| rfc6902 | B raw | 18 | 18 | 4 | 0 | 0 | 100.0% (18/18) | 94.7% (18/19) | 97.3% | 77.8% (14/18) |
+| rfc6902 | B delivered | 12 | 12 | 0 | 0 | 0 | 100.0% (12/12) | 63.2% (12/19) | 77.4% | 83.3% (10/12) |
+
+### The same matching at 30% and 70% overlap
+
+| Document | Arm | 30%: P / R / F1 | 50%: P / R / F1 | 70%: P / R / F1 | Smallest overlap of a matched pair at 50% |
+|---|---|---|---|---|---:|
+| rfc6902 | A0 chat — illustrative, not reproducible | 94.4% / 89.5% / 91.9% | 94.4% / 89.5% / 91.9% | 94.4% / 89.5% / 91.9% | 100.0% |
+| rfc6902 | A baseline | 18.8% / 15.8% / 17.1% | 18.8% / 15.8% / 17.1% | 18.8% / 15.8% / 17.1% | 100.0% |
+| rfc6902 | B raw | 100.0% / 94.7% / 97.3% | 100.0% / 94.7% / 97.3% | 100.0% / 94.7% / 97.3% | 100.0% |
+| rfc6902 | B delivered | 100.0% / 63.2% / 77.4% | 100.0% / 63.2% / 77.4% | 100.0% / 63.2% / 77.4% | 100.0% |
+
+### Cost of verification
+
+| Document | Arm | Quotes not located | Of those, similarity ≥ 0.90 | Gold reached but lost | Gold held back from the register |
+|---|---|---:|---:|---:|---|
+| rfc6902 | A0 chat — illustrative, not reproducible | 0 | 0 | 0 | — |
+| rfc6902 | A baseline | 13 | 12 | 12 | — |
+| rfc6902 | B raw | 0 | 0 | 0 | — |
+| rfc6902 | B delivered | 0 | 0 | 0 | 6: 9.1, 11.1, 13.1, 16.1, 19.1, 19.2 |
+
+### How to read these tables
+
+- **A claim counts only through a quote that locates in the source.** A claim whose quote cannot be
+  found verbatim, after whitespace is collapsed, is a false positive however close its text comes to a
+  requirement. Nothing the approximate matching under *Cost of verification* finds is ever counted as
+  matched.
+- **Matched**: a located claim's span overlaps a gold requirement's span by at least 50% of the shorter
+  of the two. Each gold requirement matches at most one claim and each claim at most one gold
+  requirement, greedily by overlap size, largest first; ties go to the gold requirement earlier in the
+  document, then to the earlier claim. A claim whose quote is found more than once may match through
+  any of its occurrences; those matches are also counted in their own column.
+- **Precision** = matched ÷ claims, every claim counted, located or not. **Recall** = matched ÷ gold
+  requirements. **F1** is their harmonic mean.
+- **Modality accuracy** = matched pairs whose modality equals the gold modality ÷ matched pairs. A0 and A
+  show n/a: the naive prompt they share asks for no modality and their answers state none, so a
+  modality read off the keyword inside the quote would be our reading, not the arm's.
+- **B raw** scores every entry the extraction call returned. **B delivered** scores the register, the
+  requirements the pipeline delivers after verification; a quote found more than once, or claimed twice
+  with different modalities, goes to the human decision queue instead, and the gold requirements it
+  matched in B raw are the ones *held back from the register*.
+- **30% and 70%**: 50% is a judgment call, so the same matching is repeated with the other two
+  thresholds; nothing else changes. A threshold can only change a pair whose overlap lies between the
+  two thresholds compared, so the last column bounds how far the 50% figures could move.
+- **Cost of verification**: for every quote an arm gave that cannot be located, the closest stretch of
+  the document by Levenshtein distance; similarity = 1 − distance ÷ quote length, threshold 0.90,
+  both fixed before the analysis was run. *Gold reached but lost* counts the gold requirements such a
+  quote lands on, by the same 50% overlap, that no located claim of the same arm matched: the model
+  reached them, and lost them because its quote was not verbatim.
+- Every claim, match and missed requirement on rfc6902: [rfc6902.quality.md](rfc6902.quality.md).
+- Recall by third of the document and the chunking decision: [chunking-decision.md](chunking-decision.md).
+- The error analysis, written by hand from these files and not generated: [error-analysis.md](error-analysis.md).

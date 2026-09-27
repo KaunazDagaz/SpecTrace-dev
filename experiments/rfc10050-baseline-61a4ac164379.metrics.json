@@ -28,5 +28,6 @@
     "cache_hits": 1,
     "cache_hit_rate": 1
   },
-  "capture": null
+  "capture": null,
+  "quality": null
 }

@@ -58,19 +58,21 @@ Run:      dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc690
 Offline:  dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline
 Reproduce: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline --out runs/reference
 Baseline: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --arm baseline --offline
-Claims:   dotnet run --project src/SpecTrace.Cli -- score --claims experiments/a0/rfc6902.md --document corpus/rfc6902.txt
-Headline: dotnet run --project src/SpecTrace.Cli -- score --headline --documents <the list in experiments/headline.md>
+Claims:   dotnet run --project src/SpecTrace.Cli -- score --claims experiments/a0/rfc6902.md --document corpus/rfc6902.txt --gold corpus/gold/rfc6902.gold.yaml
+Headline: dotnet run --project src/SpecTrace.Cli -- score --headline --documents <the list in experiments/headline.md> --gold corpus/gold/rfc6902.gold.yaml
 Worksheet: dotnet run --project src/SpecTrace.Cli -- score --worksheet corpus/worksheets/rfc6902.worksheet.yaml --document corpus/rfc6902.txt
 Gold:     dotnet run --project src/SpecTrace.Cli -- score --gold corpus/gold/rfc6902.gold.yaml --document corpus/rfc6902.txt
 Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.yaml
 ```
 
-Everything above works today except `Score` against a gold standard, which prints usage and
-exits non-zero until SPEC-12. `run --arm baseline` sends the one naive prompt in
+Everything above works today. `Score` accepts the run ID of any headline row over the document the
+gold file annotates, replays it offline and adds the quality fields to its metrics file.
+`run --arm baseline` sends the one naive prompt in
 `Prompts/baseline.user.md` and scores the answer with the same verifier. `score --claims` scores
 an externally produced answer, such as a chat transcript, through the same parser and verifier.
 `score --headline` always replays from `cache/`, never calls the provider, and rewrites
-`experiments/headline.md` and every metrics file it names; CI runs the command written in that
+`experiments/headline.md`, every metrics file it names and, with `--gold`, the quality reports
+`experiments/{documentId}.quality.md` and `experiments/chunking-decision.md`; CI runs the command written in that
 file and fails if anything under `experiments/` changes. Run it after anything that changes a
 figure, and commit the result.
 
