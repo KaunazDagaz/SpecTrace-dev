@@ -80,4 +80,28 @@ public sealed class NormalizedDocumentTests
     {
         Assert.Throws<ArgumentNullException>(() => NormalizedDocument.Create("abc").Resolve(null!));
     }
+
+    [Fact]
+    public void EveryOccurrenceOfAQuoteFoundMoreThanOnceIsListedWithItsRawSpan()
+    {
+        const string raw = "A: the cat\n   sat.\nB: the cat sat.\nC: the dog sat.";
+        var document = NormalizedDocument.Create(raw);
+
+        var occurrences = document.Occurrences("the cat sat.");
+
+        Assert.Equal(2, occurrences.Count);
+        Assert.Equal("the cat\n   sat.", raw[occurrences[0].Start..occurrences[0].End]);
+        Assert.Equal("the cat sat.", raw[occurrences[1].Start..occurrences[1].End]);
+        Assert.Equal(Verification.Ambiguous, document.Resolve("the cat sat.").Verification);
+    }
+
+    [Fact]
+    public void AQuoteFoundOnceHasOneOccurrenceAtItsResolvedSpanAndAQuoteNotFoundHasNone()
+    {
+        var document = NormalizedDocument.Create("A: the cat sat.\nB: the dog sat.");
+
+        Assert.Equal([document.Resolve("the dog sat.").Span!.Value], document.Occurrences("the dog sat."));
+        Assert.Empty(document.Occurrences("the bird sat."));
+        Assert.Empty(document.Occurrences("  \n "));
+    }
 }
