@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <None Include="..\..\corpus\rfc6902.txt" Link="corpus\rfc6902.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\corpus\rfc10050.txt" Link="corpus\rfc10050.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
