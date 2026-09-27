@@ -13,7 +13,8 @@ public sealed record ArmMetrics(
     ClaimTally Claimed,
     ClaimTally? Delivered,
     CallCost? Cost,
-    ChatCapture? Capture)
+    ChatCapture? Capture,
+    ArmQuality? Quality = null)
 {
     public bool Reproducible => Arm != Arm.Chat;
 

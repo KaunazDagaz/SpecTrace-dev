@@ -27,5 +27,115 @@
     "mode": "default, no Gems, no Deep Research",
     "input": "file attachment",
     "share_link": "https://share.gemini.google/MiLBqTojoJYc"
+  },
+  "quality": {
+    "gold_standard": {
+      "file": "rfc6902.gold.yaml",
+      "sha256": "0843d173966992748331e057793905efc81574554291bbdbb0db854418ab2dc6",
+      "document_id": "rfc6902",
+      "annotation_rules_commit": "69ed50ea13564b3da3b17705b3bd39336a082349",
+      "annotator": "Mikita Besau",
+      "annotated_at": "27.09.2026",
+      "requirements": 19
+    },
+    "matching": {
+      "min_overlap_percent_of_shorter_span": 50,
+      "greedy": "each gold requirement matches at most one claim and each claim at most one gold requirement; pairs are taken greedily by overlap size, largest first; ties go to the gold requirement earlier in the document, then to the earlier claim; a claim whose quote is found more than once may match through any occurrence",
+      "counted": "a claim counts only through a quote located in the source; a claim whose quote cannot be located, or that has no quote, is a false positive"
+    },
+    "claimed": {
+      "claims": 18,
+      "located": 18,
+      "not_located": 0,
+      "matched": 17,
+      "matched_through_a_quote_found_more_than_once": 4,
+      "located_without_gold_match": 1,
+      "gold_missed": 2,
+      "precision": 0.9444,
+      "recall": 0.8947,
+      "f1": 0.9189,
+      "modality_correct": null,
+      "modality_accuracy": null,
+      "modality_not_applicable": "the arm states no modality: the naive prompt it shares asks for none, and a modality read off the keyword inside the quote would be our reading, not the arm's"
+    },
+    "delivered": null,
+    "by_min_overlap": [
+      {
+        "min_overlap_percent": 30,
+        "claimed": {
+          "matched": 17,
+          "precision": 0.9444,
+          "recall": 0.8947,
+          "f1": 0.9189
+        },
+        "delivered": null
+      },
+      {
+        "min_overlap_percent": 50,
+        "claimed": {
+          "matched": 17,
+          "precision": 0.9444,
+          "recall": 0.8947,
+          "f1": 0.9189
+        },
+        "delivered": null
+      },
+      {
+        "min_overlap_percent": 70,
+        "claimed": {
+          "matched": 17,
+          "precision": 0.9444,
+          "recall": 0.8947,
+          "f1": 0.9189
+        },
+        "delivered": null
+      }
+    ],
+    "recall_by_third": {
+      "document_lines": 1011,
+      "parts": [
+        {
+          "part": 1,
+          "first_line": 1,
+          "last_line": 337,
+          "gold": 12,
+          "matched_claimed": 11,
+          "recall_claimed": 0.9167,
+          "matched_delivered": null,
+          "recall_delivered": null
+        },
+        {
+          "part": 2,
+          "first_line": 338,
+          "last_line": 674,
+          "gold": 7,
+          "matched_claimed": 6,
+          "recall_claimed": 0.8571,
+          "matched_delivered": null,
+          "recall_delivered": null
+        },
+        {
+          "part": 3,
+          "first_line": 675,
+          "last_line": 1011,
+          "gold": 0,
+          "matched_claimed": 0,
+          "recall_claimed": null,
+          "matched_delivered": null,
+          "recall_delivered": null
+        }
+      ]
+    },
+    "cost_of_verification": {
+      "similarity": "1 - (Levenshtein distance between the quote and the closest stretch of the document) / (quote length), both whitespace-collapsed; the closest gold requirement is the one that stretch overlaps by at least 50% of the shorter span; analysis only, never counted as verified",
+      "similarity_threshold": 0.9,
+      "quotes_not_located": 0,
+      "claims_without_quote": 0,
+      "quotes_at_or_above_threshold": 0,
+      "gold_reached_but_lost": 0,
+      "gold_reached_but_lost_labels": [],
+      "gold_held_back_from_register": null,
+      "gold_held_back_labels": null
+    }
   }
 }

@@ -38,5 +38,151 @@
     "cache_hits": 13,
     "cache_hit_rate": 1
   },
-  "capture": null
+  "capture": null,
+  "quality": {
+    "gold_standard": {
+      "file": "rfc6902.gold.yaml",
+      "sha256": "0843d173966992748331e057793905efc81574554291bbdbb0db854418ab2dc6",
+      "document_id": "rfc6902",
+      "annotation_rules_commit": "69ed50ea13564b3da3b17705b3bd39336a082349",
+      "annotator": "Mikita Besau",
+      "annotated_at": "27.09.2026",
+      "requirements": 19
+    },
+    "matching": {
+      "min_overlap_percent_of_shorter_span": 50,
+      "greedy": "each gold requirement matches at most one claim and each claim at most one gold requirement; pairs are taken greedily by overlap size, largest first; ties go to the gold requirement earlier in the document, then to the earlier claim; a claim whose quote is found more than once may match through any occurrence",
+      "counted": "a claim counts only through a quote located in the source; a claim whose quote cannot be located, or that has no quote, is a false positive"
+    },
+    "claimed": {
+      "claims": 18,
+      "located": 18,
+      "not_located": 0,
+      "matched": 18,
+      "matched_through_a_quote_found_more_than_once": 4,
+      "located_without_gold_match": 0,
+      "gold_missed": 1,
+      "precision": 1,
+      "recall": 0.9474,
+      "f1": 0.973,
+      "modality_correct": 14,
+      "modality_accuracy": 0.7778,
+      "modality_not_applicable": null
+    },
+    "delivered": {
+      "claims": 12,
+      "located": 12,
+      "not_located": 0,
+      "matched": 12,
+      "matched_through_a_quote_found_more_than_once": 0,
+      "located_without_gold_match": 0,
+      "gold_missed": 7,
+      "precision": 1,
+      "recall": 0.6316,
+      "f1": 0.7742,
+      "modality_correct": 10,
+      "modality_accuracy": 0.8333,
+      "modality_not_applicable": null
+    },
+    "by_min_overlap": [
+      {
+        "min_overlap_percent": 30,
+        "claimed": {
+          "matched": 18,
+          "precision": 1,
+          "recall": 0.9474,
+          "f1": 0.973
+        },
+        "delivered": {
+          "matched": 12,
+          "precision": 1,
+          "recall": 0.6316,
+          "f1": 0.7742
+        }
+      },
+      {
+        "min_overlap_percent": 50,
+        "claimed": {
+          "matched": 18,
+          "precision": 1,
+          "recall": 0.9474,
+          "f1": 0.973
+        },
+        "delivered": {
+          "matched": 12,
+          "precision": 1,
+          "recall": 0.6316,
+          "f1": 0.7742
+        }
+      },
+      {
+        "min_overlap_percent": 70,
+        "claimed": {
+          "matched": 18,
+          "precision": 1,
+          "recall": 0.9474,
+          "f1": 0.973
+        },
+        "delivered": {
+          "matched": 12,
+          "precision": 1,
+          "recall": 0.6316,
+          "f1": 0.7742
+        }
+      }
+    ],
+    "recall_by_third": {
+      "document_lines": 1011,
+      "parts": [
+        {
+          "part": 1,
+          "first_line": 1,
+          "last_line": 337,
+          "gold": 12,
+          "matched_claimed": 11,
+          "recall_claimed": 0.9167,
+          "matched_delivered": 8,
+          "recall_delivered": 0.6667
+        },
+        {
+          "part": 2,
+          "first_line": 338,
+          "last_line": 674,
+          "gold": 7,
+          "matched_claimed": 7,
+          "recall_claimed": 1,
+          "matched_delivered": 4,
+          "recall_delivered": 0.5714
+        },
+        {
+          "part": 3,
+          "first_line": 675,
+          "last_line": 1011,
+          "gold": 0,
+          "matched_claimed": 0,
+          "recall_claimed": null,
+          "matched_delivered": 0,
+          "recall_delivered": null
+        }
+      ]
+    },
+    "cost_of_verification": {
+      "similarity": "1 - (Levenshtein distance between the quote and the closest stretch of the document) / (quote length), both whitespace-collapsed; the closest gold requirement is the one that stretch overlaps by at least 50% of the shorter span; analysis only, never counted as verified",
+      "similarity_threshold": 0.9,
+      "quotes_not_located": 0,
+      "claims_without_quote": 0,
+      "quotes_at_or_above_threshold": 0,
+      "gold_reached_but_lost": 0,
+      "gold_reached_but_lost_labels": [],
+      "gold_held_back_from_register": 6,
+      "gold_held_back_labels": [
+        "9.1",
+        "11.1",
+        "13.1",
+        "16.1",
+        "19.1",
+        "19.2"
+      ]
+    }
+  }
 }

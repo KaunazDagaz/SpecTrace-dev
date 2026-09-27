@@ -23,6 +23,10 @@ public static class SpecTraceCli
 
     public const string HeadlineCommandPrefix = "dotnet run --project src/SpecTrace.Cli -- score --headline --documents ";
 
+    public const string GoldOption = "--gold";
+
+    public const string CorpusDirectory = "corpus";
+
     private static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(3);
 
     private static readonly TimeSpan BaselineCallTimeout = TimeSpan.FromMinutes(20);
@@ -122,7 +126,7 @@ public static class SpecTraceCli
             return await WorksheetAsync(worksheet, values, host, cancellationToken).ConfigureAwait(false);
         }
 
-        if (values.TryGetValue("--gold", out var gold) && !values.ContainsKey("--run"))
+        if (values.TryGetValue(GoldOption, out var gold) && !values.ContainsKey("--run") && !values.ContainsKey("--claims") && !flags.Contains(HeadlineFlag))
         {
             return await GoldAsync(gold, values, host, cancellationToken).ConfigureAwait(false);
         }
@@ -136,10 +140,21 @@ public static class SpecTraceCli
                 return await HeadlineAsync(values, output, host, cancellationToken).ConfigureAwait(false);
             }
 
+            if (values.TryGetValue("--run", out var runId))
+            {
+                return await RunScoreAsync(runId, values, output, host, cancellationToken).ConfigureAwait(false);
+            }
+
             if (values.TryGetValue("--claims", out var claims))
             {
                 return await ClaimsAsync(claims, values, output, host, cancellationToken).ConfigureAwait(false);
             }
+        }
+        catch (InvalidGoldFileException exception)
+        {
+            host.Error.WriteLine(exception.Message);
+            host.Error.WriteLine("The gold file does not load, so nothing was scored.");
+            return ExitFailure;
         }
         catch (Exception exception) when (exception is LlmException
             or InvalidTranscriptException
@@ -153,13 +168,8 @@ public static class SpecTraceCli
             return ExitFailure;
         }
 
-        if (values.ContainsKey("--run") || values.ContainsKey("--gold"))
-        {
-            host.Error.WriteLine("score --run <id> --gold <path> is not implemented yet. It lands with SPEC-12.");
-            return ExitUsage;
-        }
-
-        host.Error.WriteLine("score needs --claims <file> --document <path>, or --headline --documents <path,path>.");
+        host.Error.WriteLine(
+            "score needs --claims <file> --document <path>, --headline --documents <path,path>, or --run <id> --gold <path>.");
         WriteUsage(host.Error);
         return ExitUsage;
     }
@@ -285,8 +295,11 @@ public static class SpecTraceCli
             return ExitUsage;
         }
 
+        var gold = values.TryGetValue(GoldOption, out var goldPath)
+            ? await GoldFile.LoadReferenceAsync(goldPath, documentPath, AnnotationRules.FrozenCommit, cancellationToken).ConfigureAwait(false)
+            : null;
         var score = await Experiment
-            .ChatAsync(claims, documentPath, host.Prompts.Baseline, output, cancellationToken)
+            .ChatAsync(claims, documentPath, host.Prompts.Baseline, output, gold, cancellationToken)
             .ConfigureAwait(false);
         var written = await ExperimentArtifacts
             .WriteMetricsAsync(score.Metrics, output, cancellationToken)
@@ -323,26 +336,29 @@ public static class SpecTraceCli
         }
 
         var documents = list.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var model = values.GetValueOrDefault("--model", LlmClientFactory.DefaultModel);
+        var goldPaths = values.TryGetValue(GoldOption, out var goldList)
+            ? goldList.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : [];
+        var golds = new List<GoldReference>();
 
-        using var httpClient = new HttpClient(host.Network, disposeHandler: false) { Timeout = CallTimeout };
+        foreach (var goldPath in goldPaths)
+        {
+            var documentId = await GoldFile.DocumentIdOfAsync(goldPath, cancellationToken).ConfigureAwait(false);
+            var documentPath = documents.FirstOrDefault(path => ExtractionRun.DocumentIdFor(path) == documentId);
 
-        var client = LlmClientFactory.Create(
-            httpClient,
-            values.GetValueOrDefault("--cache", "cache"),
-            offline: true,
-            apiKey: null);
+            if (documentPath is null)
+            {
+                host.Error.WriteLine($"{goldPath} annotates {documentId}, which is not among --documents {list}.");
+                return ExitUsage;
+            }
 
-        var rows = await Experiment
-            .MeasureAsync(
-                documents,
-                values.GetValueOrDefault("--transcripts", TranscriptsDirectory),
-                output,
-                client,
-                model,
-                host.Prompts,
-                cancellationToken)
-            .ConfigureAwait(false);
+            golds.Add(await GoldFile
+                .LoadReferenceAsync(goldPath, documentPath, AnnotationRules.FrozenCommit, cancellationToken)
+                .ConfigureAwait(false));
+        }
+
+        var command = HeadlineCommandPrefix + list + (goldList is null ? string.Empty : $" {GoldOption} {goldList}");
+        var rows = await MeasureOfflineAsync(documents, golds, values, output, host, cancellationToken).ConfigureAwait(false);
 
         foreach (var row in rows)
         {
@@ -353,7 +369,11 @@ public static class SpecTraceCli
         }
 
         await ExperimentArtifacts
-            .WriteHeadlineAsync(rows, HeadlineCommandPrefix + list, output, cancellationToken)
+            .WriteHeadlineAsync(rows, command, output, cancellationToken)
+            .ConfigureAwait(false);
+
+        var quality = await ExperimentArtifacts
+            .WriteQualityAsync(rows, command, output, cancellationToken)
             .ConfigureAwait(false);
 
         foreach (var row in rows)
@@ -365,12 +385,118 @@ public static class SpecTraceCli
                     : $"not scored: {row.NotScored}"));
         }
 
+        foreach (var view in QualityReport.ScoredRows(rows))
+        {
+            WriteQuality(host.Out, view);
+        }
+
         host.Out.WriteLine();
         host.Out.WriteLine("mode           offline, replayed from the cache; no key is read and no request is sent");
         host.Out.WriteLine(
             $"written to     {Path.Combine(output, ExperimentArtifacts.HeadlineFile)} and one metrics file per scored row");
 
+        foreach (var file in quality)
+        {
+            host.Out.WriteLine($"               {file}");
+        }
+
         return ExitSuccess;
+    }
+
+    private static async Task<int> RunScoreAsync(
+        string runId,
+        Dictionary<string, string> values,
+        string output,
+        CliHost host,
+        CancellationToken cancellationToken)
+    {
+        if (!values.TryGetValue(GoldOption, out var goldPath))
+        {
+            host.Error.WriteLine("score --run <id> needs --gold <path>.");
+            return ExitUsage;
+        }
+
+        var documentId = await GoldFile.DocumentIdOfAsync(goldPath, cancellationToken).ConfigureAwait(false);
+
+        if (!runId.StartsWith(documentId + "-", StringComparison.Ordinal))
+        {
+            host.Error.WriteLine($"Run {runId} is not a run over {documentId}, the document {goldPath} annotates.");
+            return ExitFailure;
+        }
+
+        var documentPath = values.GetValueOrDefault("--document", Path.Combine(CorpusDirectory, documentId + ".txt"));
+        var gold = await GoldFile
+            .LoadReferenceAsync(goldPath, documentPath, AnnotationRules.FrozenCommit, cancellationToken)
+            .ConfigureAwait(false);
+        var rows = await MeasureOfflineAsync([documentPath], [gold], values, output, host, cancellationToken).ConfigureAwait(false);
+        var metrics = rows.Select(row => row.Metrics).OfType<ArmMetrics>().FirstOrDefault(scored => scored.RunId == runId);
+
+        if (metrics is null)
+        {
+            host.Error.WriteLine(
+                $"Run {runId} cannot be replayed from the cache and the transcripts with the current prompts, model and corpus. "
+                + $"The runs over {documentId} that can: "
+                + string.Join(", ", rows.Select(row => row.Metrics?.RunId).OfType<string>())
+                + ".");
+            return ExitFailure;
+        }
+
+        var written = await ExperimentArtifacts.WriteMetricsAsync(metrics, output, cancellationToken).ConfigureAwait(false);
+
+        foreach (var view in QualityReport.ScoredRows([HeadlineRow.Scored(metrics)]))
+        {
+            WriteQuality(host.Out, view);
+        }
+
+        host.Out.WriteLine();
+        host.Out.WriteLine("mode           offline, replayed from the cache; no key is read and no request is sent");
+        host.Out.WriteLine($"written to     {written}");
+        host.Out.WriteLine();
+        host.Out.WriteLine(
+            "A claim counts only through a quote located in the source; a claim that cannot be located is a false positive.");
+
+        return ExitSuccess;
+    }
+
+    private static async Task<IReadOnlyList<HeadlineRow>> MeasureOfflineAsync(
+        IReadOnlyList<string> documents,
+        IReadOnlyList<GoldReference> golds,
+        Dictionary<string, string> values,
+        string output,
+        CliHost host,
+        CancellationToken cancellationToken)
+    {
+        using var httpClient = new HttpClient(host.Network, disposeHandler: false) { Timeout = CallTimeout };
+
+        var client = LlmClientFactory.Create(
+            httpClient,
+            values.GetValueOrDefault("--cache", "cache"),
+            offline: true,
+            apiKey: null);
+
+        return await Experiment
+            .MeasureAsync(
+                documents,
+                values.GetValueOrDefault("--transcripts", TranscriptsDirectory),
+                output,
+                client,
+                values.GetValueOrDefault("--model", LlmClientFactory.DefaultModel),
+                host.Prompts,
+                golds,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static void WriteQuality(TextWriter output, QualityReport.Scored view)
+    {
+        var score = view.View.Primary.Score;
+
+        output.WriteLine(
+            $"{view.Metrics.DocumentId,-12} {view.Label,-23} "
+            + $"precision {QualityReport.Share(score.Matched, score.Predictions),-16} "
+            + $"recall {QualityReport.Share(score.Matched, score.Gold),-16} "
+            + $"F1 {ExperimentArtifacts.Percent(score.F1),-7} "
+            + $"modality {(score.ModalityStated ? QualityReport.Share(score.ModalityCorrect ?? 0, score.Matched) : "n/a")}");
     }
 
     private static void WriteTally(TextWriter output, ArmMetrics metrics)
@@ -620,17 +746,19 @@ public static class SpecTraceCli
         output.WriteLine("  extract --document <path> [--offline] [--model <id>] [--cache <dir>] [--out <dir>]");
         output.WriteLine("          ask the model for requirements and keep only those located in the source");
         output.WriteLine();
-        output.WriteLine("  score   --claims <file> --document <path> [--out <dir>]");
+        output.WriteLine("  score   --claims <file> --document <path> [--gold <path>] [--out <dir>]");
         output.WriteLine("          score an externally produced answer, such as a chat transcript, by the same parser and verifier");
-        output.WriteLine("  score   --headline --documents <path,path> [--transcripts <dir>] [--cache <dir>] [--out <dir>]");
-        output.WriteLine("          replay every arm offline and write the metrics files and experiments/headline.md");
+        output.WriteLine("  score   --headline --documents <path,path> [--gold <path>] [--transcripts <dir>] [--cache <dir>] [--out <dir>]");
+        output.WriteLine("          replay every arm offline and write the metrics files and experiments/headline.md;");
+        output.WriteLine("          with --gold, also score every arm on that document against the gold standard");
+        output.WriteLine("  score   --run <id> --gold <path> [--document <path>] [--transcripts <dir>] [--cache <dir>] [--out <dir>]");
+        output.WriteLine("          replay one run offline, score it against the gold standard, add the fields to its metrics file");
         output.WriteLine("  score   --worksheet <file> --document <path>");
         output.WriteLine("          write an annotation worksheet: every sentence with an uppercase BCP 14 keyword");
         output.WriteLine("  score   --gold <file> --document <path>");
         output.WriteLine("          check a gold file: every quote found exactly once, every value allowed, rules frozen");
         output.WriteLine();
-        output.WriteLine("Not implemented yet — each lands with its own task:");
-        output.WriteLine("  score   --run <id> --gold <path>  score a run against a gold standard");
+        output.WriteLine("Not implemented yet — lands with its own task:");
         output.WriteLine("  export  --run <id>                export the matrix");
         output.WriteLine();
         output.WriteLine("Options:");

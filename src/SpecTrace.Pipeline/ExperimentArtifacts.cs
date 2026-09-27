@@ -142,8 +142,51 @@ public static class ExperimentArtifacts
         text.Append("  provider did. B's extraction is requested with a response schema, and a structured answer that stops\n");
         text.Append("  for any other reason is refused and never cached; entries cached before finish reasons were kept\n");
         text.Append("  show `not recorded`.\n");
+        text.Append(QualityReport.RenderHeadlineSection(rows));
 
         return text.ToString();
+    }
+
+    public static async Task<IReadOnlyList<string>> WriteQualityAsync(
+        IReadOnlyList<HeadlineRow> rows,
+        string command,
+        string directory,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        var documents = QualityReport.ScoredRows(rows).Select(view => view.Metrics.DocumentId).Distinct().ToList();
+        var written = new List<string>();
+
+        if (documents.Count == 0)
+        {
+            return written;
+        }
+
+        Directory.CreateDirectory(directory);
+
+        foreach (var document in documents)
+        {
+            written.Add(await WriteTextAsync(
+                Path.Combine(directory, QualityReport.FileFor(document)),
+                QualityReport.RenderDocument(rows, document, command),
+                cancellationToken).ConfigureAwait(false));
+        }
+
+        written.Add(await WriteTextAsync(
+            Path.Combine(directory, QualityReport.ChunkingFile),
+            QualityReport.RenderChunking(rows, command),
+            cancellationToken).ConfigureAwait(false));
+
+        return written;
+    }
+
+    private static async Task<string> WriteTextAsync(string path, string content, CancellationToken cancellationToken)
+    {
+        await File.WriteAllTextAsync(path, content, Utf8WithoutMark, cancellationToken).ConfigureAwait(false);
+
+        return path;
     }
 
     private static string ArmLabel(ArmMetrics metrics, bool delivered) => metrics.Arm switch
@@ -188,7 +231,8 @@ public static class ExperimentArtifacts
         [property: JsonPropertyName("claimed")] TallyJson Claimed,
         [property: JsonPropertyName("delivered")] TallyJson? Delivered,
         [property: JsonPropertyName("cost")] CostJson? Cost,
-        [property: JsonPropertyName("capture")] CaptureJson? Capture)
+        [property: JsonPropertyName("capture")] CaptureJson? Capture,
+        [property: JsonPropertyName("quality")] QualityJson? Quality)
     {
         public static MetricsJson From(ArmMetrics metrics) => new(
             metrics.RunId,
@@ -202,7 +246,8 @@ public static class ExperimentArtifacts
             TallyJson.From(metrics.Claimed),
             metrics.Delivered is null ? null : TallyJson.From(metrics.Delivered),
             metrics.Cost is null ? null : CostJson.From(metrics.Cost),
-            metrics.Capture is null ? null : CaptureJson.From(metrics.Capture));
+            metrics.Capture is null ? null : CaptureJson.From(metrics.Capture),
+            metrics.Quality is null ? null : QualityJson.From(metrics.Quality));
     }
 
     private sealed record TallyJson(

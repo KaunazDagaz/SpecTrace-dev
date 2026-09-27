@@ -43,8 +43,8 @@ jobs:
       - name: Reproduce the reference run with the README command
         run: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --offline --out runs/reference
 
-      - name: Recompute the headline table and every metrics file offline from the cache and the transcripts
-        run: dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt,corpus/rfc10050.txt
+      - name: Recompute the headline, every metrics file and the quality reports offline from the cache, the transcripts and the gold standard
+        run: dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt,corpus/rfc10050.txt --gold corpus/gold/rfc6902.gold.yaml
 
       - name: Fail if the recomputed experiments differ from the committed ones
         shell: bash

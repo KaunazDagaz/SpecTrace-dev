@@ -3,6 +3,6 @@ cache/** -text
 runs/reference/** -text
 experiments/a0/** -text
 experiments/*.metrics.json -text
-experiments/headline.md -text
+experiments/*.md -text
 
 src/SpecTrace.Pipeline/Prompts/** -text

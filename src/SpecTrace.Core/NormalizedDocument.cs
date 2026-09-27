@@ -79,4 +79,35 @@ public sealed class NormalizedDocument
         var span = new TextSpan(_map[first], _map[first + normalizedQuote.Length - 1] + 1);
         return QuoteResolution.Exact(normalizedQuote, span);
     }
+
+    public IReadOnlyList<TextSpan> Occurrences(string quote)
+    {
+        ArgumentNullException.ThrowIfNull(quote);
+
+        var normalizedQuote = TextNormalizer.Normalize(quote);
+        var spans = new List<TextSpan>();
+
+        if (normalizedQuote.Length == 0)
+        {
+            return spans;
+        }
+
+        for (var at = Normal.IndexOf(normalizedQuote, StringComparison.Ordinal);
+            at >= 0;
+            at = Normal.IndexOf(normalizedQuote, at + 1, StringComparison.Ordinal))
+        {
+            spans.Add(RawSpan(at, at + normalizedQuote.Length));
+        }
+
+        return spans;
+    }
+
+    public TextSpan RawSpan(int normalStart, int normalEnd)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(normalStart);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(normalEnd, normalStart);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(normalEnd, Normal.Length);
+
+        return new TextSpan(_map[normalStart], _map[normalEnd - 1] + 1);
+    }
 }

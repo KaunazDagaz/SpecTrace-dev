@@ -94,20 +94,6 @@ public sealed class ScoreClaimsCommandTests
         Assert.Contains("Nothing was scored.", error, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task ScoringAgainstAGoldStandardIsStillReportedAsNotImplemented()
-    {
-        var network = new NoNetworkHandler();
-        using var output = new StringWriter();
-        using var error = new StringWriter();
-        var host = new CliHost(network, _ => null, PromptSet.Embedded, output, error);
-
-        var exitCode = await SpecTraceCli.RunAsync(["score", "--run", "x", "--gold", "y"], host, CancellationToken.None);
-
-        Assert.Equal(SpecTraceCli.ExitUsage, exitCode);
-        Assert.Contains("SPEC-12", error.ToString(), StringComparison.Ordinal);
-    }
-
     private static async Task<(int ExitCode, string Output, string Error, NoNetworkHandler Network)> ScoreAsync(string outputDirectory, string transcript)
     {
         var network = new NoNetworkHandler();
