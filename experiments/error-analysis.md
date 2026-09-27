@@ -1,8 +1,8 @@
 # Error analysis: extraction on RFC 6902 against the gold standard
 
 **Drafted by the agent** (Claude Opus 5.5, 27 September 2026, SPEC-12). Every paragraph headed *Agent's reading*
-is a draft conclusion for the student to accept, change or reject. The verdict column in section 5 belongs to
-the student and is left empty.
+is a draft conclusion for the student to accept, change or reject. The verdicts in section 5 were entered by the
+agent on the student's instruction of 27 September 2026, and the student may overrule any of them.
 
 This file is written by hand; it is not generated. Every figure in it comes from files the headline command
 regenerates offline and CI checks byte for byte: [headline.md](headline.md),
@@ -183,9 +183,13 @@ The annotation is consistent with the rules here, and the gold standard is uncha
 
 ## 5. Unmatched claims: verdicts for the student
 
-Every claim that matched no gold requirement at 50%. For each, choose **annotation miss** (the gold standard
-lacks a requirement it should hold under the frozen rules) or **model false positive**. The agent leaves this
-column empty.
+Every claim that matched no gold requirement at 50%. Each gets one verdict: **annotation miss** (the gold
+standard lacks a requirement it should hold under the frozen rules) or **model false positive**.
+
+**The verdicts below were entered by the agent on the student's instruction of 27 September 2026**, not by the
+student. The student may overrule any of them. No verdict changes a figure: precision already counts every row
+here as a false positive, and an annotation miss would call for a new annotation under the frozen-rules process,
+never an edit to the gold standard. None was found: every row is a model false positive.
 
 Two facts for the verdicts, neither of them a verdict:
 - A0 chat claim 6 is the sentence the annotation rules §1 list as an example of what is not a requirement:
@@ -196,20 +200,20 @@ Two facts for the verdicts, neither of them a verdict:
 
 | Arm | Claim | Section | Quote | Closest gold requirement | Verdict (annotation miss / model false positive) |
 |---|---|---|---|---|---|
-| A0 chat (illustrative) | 6 | 4.1 | However, the object itself or an array containing it does need to exist, and it remains an error for that not to be the case. | — (located) | |
-| A baseline | 1 | not located | Operation objects MUST have exactly one 'op' member, whose value indicates the operation to perform. | 2.1 (similarity 0.980) | |
-| A baseline | 2 | not located | Its value MUST be one of 'add', 'remove', 'replace', 'move', 'copy', or 'test'; other values are errors. | 3.1 (similarity 0.885, below 0.90) | |
-| A baseline | 3 | not located | Additionally, operation objects MUST have exactly one 'path' member. | 4.1 (similarity 0.971) | |
-| A baseline | 4 | not located | The operation object MUST contain a 'value' member whose content specifies the value to be added. | 6.1 (similarity 0.979) | |
-| A baseline | 5 | not located | When the operation is applied, the target location MUST reference one of: [...] | 7.1 (similarity 0.937) | |
-| A baseline | 8 | not located | The operation object MUST contain a 'value' member whose content specifies the replacement value. | 10.1 (similarity 0.979) | |
-| A baseline | 10 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to move the value from. | 12.1 (similarity 0.989) | |
-| A baseline | 11 | not located | The 'from' location MUST exist for the operation to be successful. | 13.1, 16.1 (similarity 0.970) | |
-| A baseline | 12 | not located | The 'from' location MUST NOT be a proper prefix of the 'path' location; i.e., a location cannot be moved into one of its children. | 14.1 (similarity 0.969) | |
-| A baseline | 13 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to copy the value from. | 15.1 (similarity 0.989) | |
-| A baseline | 14 | not located | The 'from' location MUST exist for the operation to be successful. | 13.1, 16.1 (similarity 0.970) | |
-| A baseline | 15 | not located | The operation object MUST contain a 'value' member that conveys the value to be compared to the target location's value. | 17.1 (similarity 0.983) | |
-| A baseline | 16 | not located | The target location MUST be equal to the 'value' value for the operation to be considered successful. | 18.1 (similarity 0.980) | |
+| A0 chat (illustrative) | 6 | 4.1 | However, the object itself or an array containing it does need to exist, and it remains an error for that not to be the case. | — (located) | model false positive: no uppercase keyword; the rules §1 exclude this very sentence |
+| A baseline | 1 | not located | Operation objects MUST have exactly one 'op' member, whose value indicates the operation to perform. | 2.1 (similarity 0.980) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 2.1 |
+| A baseline | 2 | not located | Its value MUST be one of 'add', 'remove', 'replace', 'move', 'copy', or 'test'; other values are errors. | 3.1 (similarity 0.885, below 0.90) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 3.1 |
+| A baseline | 3 | not located | Additionally, operation objects MUST have exactly one 'path' member. | 4.1 (similarity 0.971) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 4.1 |
+| A baseline | 4 | not located | The operation object MUST contain a 'value' member whose content specifies the value to be added. | 6.1 (similarity 0.979) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 6.1 |
+| A baseline | 5 | not located | When the operation is applied, the target location MUST reference one of: [...] | 7.1 (similarity 0.937) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 7.1 |
+| A baseline | 8 | not located | The operation object MUST contain a 'value' member whose content specifies the replacement value. | 10.1 (similarity 0.979) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 10.1 |
+| A baseline | 10 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to move the value from. | 12.1 (similarity 0.989) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 12.1 |
+| A baseline | 11 | not located | The 'from' location MUST exist for the operation to be successful. | 13.1, 16.1 (similarity 0.970) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 13.1 or 16.1 |
+| A baseline | 12 | not located | The 'from' location MUST NOT be a proper prefix of the 'path' location; i.e., a location cannot be moved into one of its children. | 14.1 (similarity 0.969) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 14.1 |
+| A baseline | 13 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to copy the value from. | 15.1 (similarity 0.989) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 15.1 |
+| A baseline | 14 | not located | The 'from' location MUST exist for the operation to be successful. | 13.1, 16.1 (similarity 0.970) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 13.1 or 16.1 |
+| A baseline | 15 | not located | The operation object MUST contain a 'value' member that conveys the value to be compared to the target location's value. | 17.1 (similarity 0.983) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 17.1 |
+| A baseline | 16 | not located | The target location MUST be equal to the 'value' value for the operation to be considered successful. | 18.1 (similarity 0.980) | model false positive: the quote is not verbatim; the gold standard holds this requirement as 18.1 |
 
 The pipeline has no unmatched claim, raw or delivered.
 
