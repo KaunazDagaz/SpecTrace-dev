@@ -31,12 +31,75 @@ public sealed class ClaimParserTests
         Assert.All(claims, claim => Assert.NotNull(claim.Quote));
     }
 
+    [Fact]
+    public void TheRealBaselineAnswerOnRfc10050LabelsItsQuotesExactSentenceAndEachIsRead()
+    {
+        var answer = RealAnswers.Baseline(RealAnswers.Rfc10050);
+        var claims = ClaimParser.Parse(answer);
+        var headings = answer.Split('\n').Count(line => line.StartsWith("### Requirement ", StringComparison.Ordinal));
+
+        Assert.Equal(20, headings);
+        Assert.Equal(22, claims.Count);
+        Assert.Equal(20, claims.Select(claim => claim.Item).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(claims, claim => Assert.NotNull(claim.Quote));
+        Assert.StartsWith("* **Exact Sentence:** ", claims[0].Source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TwoSentencesQuotedSeparatelyAndJoinedByAndAreTwoQuotesNotOneStringTheModelNeverWrote()
+    {
+        var claims = ClaimParser.Parse(RealAnswers.Baseline(RealAnswers.Rfc10050));
+        var ninth = claims.Where(claim => claim.Item.StartsWith("### Requirement 9:", StringComparison.Ordinal)).ToList();
+
+        Assert.Equal(
+            ["This MUST be a property name registered in the \"JSContact Properties\" registry.", "This field MUST NOT be empty."],
+            ninth.Select(claim => claim.Quote));
+    }
+
+    [Fact]
+    public void QuotedWordsJoinedByAndInsideOneSentenceStayOneQuote()
+    {
+        var claims = ClaimParser.Parse(RealAnswers.Baseline(RealAnswers.Rfc10050));
+
+        Assert.Contains(
+            "All profiles MUST support \"@type\" and \"version\"; therefore, profiles MUST NOT include entries for these properties.",
+            claims.Select(claim => claim.Quote));
+    }
+
+    [Theory]
+    [InlineData("\"The target MUST exist.\" and \"The from location MUST exist.\"", new[] { "The target MUST exist.", "The from location MUST exist." })]
+    [InlineData("“The target MUST exist.” and “The from location MUST exist.”", new[] { "The target MUST exist.", "The from location MUST exist." })]
+    [InlineData("\"It MUST be one of \"add\" and \"remove\".\"", new[] { "It MUST be one of \"add\" and \"remove\"." })]
+    [InlineData("\"The target MUST exist.\" (for remove)", new[] { "The target MUST exist." })]
+    [InlineData("", new string[0])]
+    public void AFieldValueHoldsOneQuoteOrSeveralSentenceQuotesJoinedByAnd(string value, string[] expected)
+    {
+        Assert.Equal(expected, ClaimParser.Quotes(value));
+    }
+
+    [Fact]
+    public void AQuoteFieldMayBeLabelledWithTheWordSentence()
+    {
+        const string Answer = """
+            ### Requirement 1
+            * **Source Sentence:** "The target location MUST exist."
+            """;
+
+        Assert.Equal("The target location MUST exist.", Assert.Single(ClaimParser.Parse(Answer)).Quote);
+    }
+
     [Theory]
     [InlineData("baseline")]
     [InlineData("chat")]
+    [InlineData("baseline rfc10050")]
     public void EveryQuoteTakenFromARealAnswerIsAVerbatimPartOfTheLineItCameFrom(string arm)
     {
-        var answer = arm == "baseline" ? RealAnswers.Baseline(Corpus.Raw) : RealAnswers.Chat(Corpus.DocumentId);
+        var answer = arm switch
+        {
+            "baseline" => RealAnswers.Baseline(Corpus.Raw),
+            "chat" => RealAnswers.Chat(Corpus.DocumentId),
+            _ => RealAnswers.Baseline(RealAnswers.Rfc10050),
+        };
 
         foreach (var claim in ClaimParser.Parse(answer))
         {
@@ -252,6 +315,8 @@ public sealed class ClaimParserTests
 
 internal static class RealAnswers
 {
+    public static string Rfc10050 => File.ReadAllText(Repository.PathTo("corpus", "rfc10050.txt"));
+
     public static string Baseline(string rawDocument)
     {
         var request = BaselineRun.RequestFor(rawDocument, LlmClientFactory.DefaultModel, PromptFile.Baseline);

@@ -202,10 +202,28 @@ public static partial class ClaimParser
                 i = following.EndLine;
             }
 
-            fields.Add(new QuoteField(start, source, Unwrap(value)));
+            var quotes = Quotes(value);
+
+            if (quotes.Count == 0)
+            {
+                fields.Add(new QuoteField(start, source, Quote: null));
+            }
+
+            fields.AddRange(quotes.Select(quote => new QuoteField(start, source, quote)));
         }
 
         return fields;
+    }
+
+    public static IReadOnlyList<string> Quotes(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        return QuoteBoundaryPattern()
+            .Split(value.Trim())
+            .Select(Unwrap)
+            .OfType<string>()
+            .ToList();
     }
 
     private static (string Value, int EndLine)? FollowingQuote(string[] lines, int start)
@@ -272,7 +290,9 @@ public static partial class ClaimParser
         var words = label.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         return words.Length is > 0 and <= MaximumLabelWords
-            && words.Any(word => word.StartsWith("quot", StringComparison.OrdinalIgnoreCase));
+            && words.Any(word =>
+                word.StartsWith("quot", StringComparison.OrdinalIgnoreCase)
+                || word.StartsWith("sentence", StringComparison.OrdinalIgnoreCase));
     }
 
     [GeneratedRegex("^ {0,3}(?<hashes>#{1,6})[ \t]+\\S", RegexOptions.CultureInvariant)]
@@ -289,6 +309,9 @@ public static partial class ClaimParser
 
     [GeneratedRegex("^[ \t]*>[ \t]?", RegexOptions.CultureInvariant)]
     private static partial Regex BlockquotePattern();
+
+    [GeneratedRegex("(?<=[.!?:][\"\u201D])[ \t]+and[ \t]+(?=[\"\u201C])", RegexOptions.CultureInvariant)]
+    private static partial Regex QuoteBoundaryPattern();
 
     private sealed record Heading(int Line, string Level, string Text)
     {
