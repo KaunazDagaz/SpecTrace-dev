@@ -32,6 +32,19 @@ public sealed class ClaimParserTests
     }
 
     [Fact]
+    public void TheRealChatAnswerOnRfc10050SplitsIntoOneClaimPerNumberedHeading()
+    {
+        var answer = RealAnswers.Chat("rfc10050");
+        var claims = ClaimParser.Parse(answer);
+        var headings = answer.Split('\n').Count(line => line.StartsWith("### ", StringComparison.Ordinal));
+
+        Assert.Equal(21, headings);
+        Assert.Equal(headings, claims.Count);
+        Assert.Equal("### 1. Registry Registration of Elements", claims[0].Item);
+        Assert.All(claims, claim => Assert.NotNull(claim.Quote));
+    }
+
+    [Fact]
     public void TheRealBaselineAnswerOnRfc10050LabelsItsQuotesExactSentenceAndEachIsRead()
     {
         var answer = RealAnswers.Baseline(RealAnswers.Rfc10050);
@@ -92,12 +105,14 @@ public sealed class ClaimParserTests
     [InlineData("baseline")]
     [InlineData("chat")]
     [InlineData("baseline rfc10050")]
+    [InlineData("chat rfc10050")]
     public void EveryQuoteTakenFromARealAnswerIsAVerbatimPartOfTheLineItCameFrom(string arm)
     {
         var answer = arm switch
         {
             "baseline" => RealAnswers.Baseline(Corpus.Raw),
             "chat" => RealAnswers.Chat(Corpus.DocumentId),
+            "chat rfc10050" => RealAnswers.Chat("rfc10050"),
             _ => RealAnswers.Baseline(RealAnswers.Rfc10050),
         };
 

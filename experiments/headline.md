@@ -10,11 +10,11 @@ dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rf
 
 | Document | Arm | Model | Claims | Not located | Not found | No quote | Found once | Found more than once | Calls | Tokens in / out | Finish reason | Metrics file |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
-| rfc6902 | A0 chat | — | not scored: pending, a0/rfc6902.md is incomplete: 'model' is still the placeholder <model name as shown in the interface>; 'share_link' is still the placeholder <public share link to the chat> | | | | | | | | | |
+| rfc6902 | A0 chat — illustrative, not reproducible | Gemini 3.5 Flash-Lite (gemini.google.com) | 18 | 0.0% (0) | 0 | 0 | 14 (77.8%) | 4 (22.2%) | — | — | — | [rfc6902-chat-2026-09-26.metrics.json](rfc6902-chat-2026-09-26.metrics.json) |
 | rfc6902 | A baseline | gemini-3.5-flash-lite (Gemini API, temperature 0) | 16 | 81.3% (13) | 13 | 0 | 1 (6.3%) | 2 (12.5%) | 1 | 7,647 / 1,788 | STOP | [rfc6902-baseline-4227a0d51f3d.metrics.json](rfc6902-baseline-4227a0d51f3d.metrics.json) |
 | rfc6902 | B pipeline, model's raw claims | gemini-3.5-flash-lite (Gemini API, temperature 0) | 18 | 0.0% (0) | 0 | 0 | 14 (77.8%) | 4 (22.2%) | 13 | 11,708 / 3,374 | not recorded | [rfc6902-3ff2234db6aa.metrics.json](rfc6902-3ff2234db6aa.metrics.json) |
 | rfc6902 | B pipeline, delivered register — zero by design | gemini-3.5-flash-lite (Gemini API, temperature 0) | 12 | 0.0% (0) | 0 | 0 | 12 (100.0%) | 0 (0.0%) | — | — | — | [rfc6902-3ff2234db6aa.metrics.json](rfc6902-3ff2234db6aa.metrics.json) |
-| rfc10050 | A0 chat | — | not scored: pending, a0/rfc10050.md is incomplete: the file does not start with front matter between two '---' lines | | | | | | | | | |
+| rfc10050 | A0 chat — illustrative, not reproducible | Gemini 3.5 Flash-Lite (gemini.google.com) | 21 | 9.5% (2) | 2 | 0 | 18 (85.7%) | 1 (4.8%) | — | — | — | [rfc10050-chat-2026-09-27.metrics.json](rfc10050-chat-2026-09-27.metrics.json) |
 | rfc10050 | A baseline | gemini-3.5-flash-lite (Gemini API, temperature 0) | 22 | 9.1% (2) | 2 | 0 | 18 (81.8%) | 2 (9.1%) | 1 | 7,930 / 2,220 | STOP | [rfc10050-baseline-61a4ac164379.metrics.json](rfc10050-baseline-61a4ac164379.metrics.json) |
 | rfc10050 | B pipeline, model's raw claims | gemini-3.5-flash-lite (Gemini API, temperature 0) | 30 | 3.3% (1) | 1 | 0 | 27 (90.0%) | 2 (6.7%) | 14 | 12,344 / 4,285 | STOP | [rfc10050-9759f1bdfc79.metrics.json](rfc10050-9759f1bdfc79.metrics.json) |
 | rfc10050 | B pipeline, delivered register — zero by design | gemini-3.5-flash-lite (Gemini API, temperature 0) | 17 | 0.0% (0) | 0 | 0 | 17 (100.0%) | 0 (0.0%) | — | — | — | [rfc10050-9759f1bdfc79.metrics.json](rfc10050-9759f1bdfc79.metrics.json) |
