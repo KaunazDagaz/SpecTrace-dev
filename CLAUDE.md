@@ -60,7 +60,9 @@ Reproduce: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc69
 Baseline: dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --arm baseline --offline
 Claims:   dotnet run --project src/SpecTrace.Cli -- score --claims experiments/a0/rfc6902.md --document corpus/rfc6902.txt
 Headline: dotnet run --project src/SpecTrace.Cli -- score --headline --documents <the list in experiments/headline.md>
-Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.json
+Worksheet: dotnet run --project src/SpecTrace.Cli -- score --worksheet corpus/worksheets/rfc6902.worksheet.yaml --document corpus/rfc6902.txt
+Gold:     dotnet run --project src/SpecTrace.Cli -- score --gold corpus/gold/rfc6902.gold.yaml --document corpus/rfc6902.txt
+Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.yaml
 ```
 
 Everything above works today except `Score` against a gold standard, which prints usage and
@@ -71,6 +73,14 @@ an externally produced answer, such as a chat transcript, through the same parse
 `experiments/headline.md` and every metrics file it names; CI runs the command written in that
 file and fails if anything under `experiments/` changes. Run it after anything that changes a
 figure, and commit the result.
+
+`score --worksheet` writes the annotation worksheet: every sentence of the de-paginated text that
+carries an uppercase BCP 14 keyword, found by a keyword scan and never by a model, with every
+annotator field empty. It never writes over an existing file. `score --gold` without `--run`
+checks a gold file and loads it only if it names the frozen rules commit recorded in
+`AnnotationRules.FrozenCommit`, every scanned sentence is decided, every value is allowed, and
+every quote is found exactly once through the existing resolver, within its section when the
+entry names one; it lists every problem with its line. CI runs the `Gold` command above.
 
 `run` extracts, verifies, generates test cases for the requirements the model classified
 testable, and writes `manifest.json`, `requirements.json`, `rejected-quotes.json`,

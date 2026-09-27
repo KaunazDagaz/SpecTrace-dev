@@ -117,6 +117,16 @@ public static class SpecTraceCli
             return ExitUsage;
         }
 
+        if (values.TryGetValue("--worksheet", out var worksheet))
+        {
+            return await WorksheetAsync(worksheet, values, host, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (values.TryGetValue("--gold", out var gold) && !values.ContainsKey("--run"))
+        {
+            return await GoldAsync(gold, values, host, cancellationToken).ConfigureAwait(false);
+        }
+
         var output = values.GetValueOrDefault("--out", ExperimentsDirectory);
 
         try
@@ -152,6 +162,114 @@ public static class SpecTraceCli
         host.Error.WriteLine("score needs --claims <file> --document <path>, or --headline --documents <path,path>.");
         WriteUsage(host.Error);
         return ExitUsage;
+    }
+
+    private static async Task<int> WorksheetAsync(
+        string worksheet,
+        Dictionary<string, string> values,
+        CliHost host,
+        CancellationToken cancellationToken)
+    {
+        if (!values.TryGetValue("--document", out var documentPath))
+        {
+            host.Error.WriteLine("score --worksheet needs --document <path>.");
+            return ExitUsage;
+        }
+
+        try
+        {
+            var candidates = await AnnotationWorksheet
+                .WriteAsync(documentPath, worksheet, cancellationToken)
+                .ConfigureAwait(false);
+
+            host.Out.WriteLine($"document       {documentPath}");
+            host.Out.WriteLine($"candidates     {candidates} sentences carry an uppercase BCP 14 keyword");
+            host.Out.WriteLine($"written to     {worksheet}");
+            host.Out.WriteLine();
+            host.Out.WriteLine(
+                "Found by a keyword scan of the de-paginated text; no model was called. Every annotator field is empty.");
+
+            return ExitSuccess;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException
+            or FileNotFoundException
+            or DirectoryNotFoundException)
+        {
+            host.Error.WriteLine(exception.Message);
+            host.Error.WriteLine("No worksheet was written.");
+            return ExitFailure;
+        }
+    }
+
+    private static async Task<int> GoldAsync(
+        string gold,
+        Dictionary<string, string> values,
+        CliHost host,
+        CancellationToken cancellationToken)
+    {
+        if (!values.TryGetValue("--document", out var documentPath))
+        {
+            host.Error.WriteLine("score --gold needs --document <path>.");
+            return ExitUsage;
+        }
+
+        GoldCheckResult result;
+
+        try
+        {
+            result = await GoldFile
+                .CheckAsync(gold, documentPath, AnnotationRules.FrozenCommit, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is InvalidGoldFileException
+            or FileNotFoundException
+            or DirectoryNotFoundException)
+        {
+            host.Error.WriteLine(exception.Message);
+            host.Error.WriteLine("The gold file does not load.");
+            return ExitFailure;
+        }
+
+        host.Out.WriteLine($"gold file      {gold}");
+        host.Out.WriteLine($"document       {documentPath}");
+        host.Out.WriteLine(
+            $"rules          {AnnotationRules.Location}, "
+            + (AnnotationRules.FrozenCommit.Length == 0 ? "not frozen yet" : $"frozen at {AnnotationRules.FrozenCommit}"));
+        host.Out.WriteLine(
+            $"candidates     {result.Kept + result.Dropped + result.Undecided} in the file: "
+            + $"{result.Kept} keep, {result.Dropped} drop, {result.Undecided} undecided");
+        host.Out.WriteLine($"located        {result.Requirements.Count} quotes found exactly once");
+
+        foreach (var requirement in result.Requirements)
+        {
+            host.Out.WriteLine(
+                $"  {$"{requirement.Candidate}.{requirement.Obligation}",-6} {requirement.Section,-6} "
+                + $"{RunArtifacts.Spell(requirement.Modality),-10} {RunArtifacts.Spell(requirement.Testability),-20} "
+                + TextNormalizer.Normalize(requirement.Quote));
+        }
+
+        if (result.Standard is { } standard)
+        {
+            host.Out.WriteLine();
+            host.Out.WriteLine(
+                $"The gold file loads: {standard.Requirements.Count} requirements under the frozen rules, "
+                + "each quote found exactly once in the document.");
+            return ExitSuccess;
+        }
+
+        host.Error.WriteLine($"problems       {result.Problems.Count}");
+
+        foreach (var problem in result.Problems)
+        {
+            host.Error.WriteLine(
+                $"  {(problem.Line > 0 ? $"line {problem.Line}" : "file"),-10} {problem.Message}");
+        }
+
+        host.Error.WriteLine();
+        host.Error.WriteLine(
+            $"The gold file does not load: {result.Problems.Count} problems. One problem rejects the whole file.");
+
+        return ExitFailure;
     }
 
     private static async Task<int> ClaimsAsync(
@@ -506,6 +624,10 @@ public static class SpecTraceCli
         output.WriteLine("          score an externally produced answer, such as a chat transcript, by the same parser and verifier");
         output.WriteLine("  score   --headline --documents <path,path> [--transcripts <dir>] [--cache <dir>] [--out <dir>]");
         output.WriteLine("          replay every arm offline and write the metrics files and experiments/headline.md");
+        output.WriteLine("  score   --worksheet <file> --document <path>");
+        output.WriteLine("          write an annotation worksheet: every sentence with an uppercase BCP 14 keyword");
+        output.WriteLine("  score   --gold <file> --document <path>");
+        output.WriteLine("          check a gold file: every quote found exactly once, every value allowed, rules frozen");
         output.WriteLine();
         output.WriteLine("Not implemented yet — each lands with its own task:");
         output.WriteLine("  score   --run <id> --gold <path>  score a run against a gold standard");

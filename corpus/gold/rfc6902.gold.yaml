@@ -1,0 +1,331 @@
+document: rfc6902
+annotation_rules_commit: 69ed50ea13564b3da3b17705b3bd39336a082349
+annotator: Mikita Besau
+annotated_at: 27.09.2026
+candidates:
+- candidate: 1
+  section: "2"
+  lines: 138-140
+  keywords: [MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, OPTIONAL]
+  source: |-
+    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+    document are to be interpreted as described in RFC 2119 [RFC2119].
+  sentence: >-
+    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 [RFC2119].
+  decision: drop
+  obligations:
+  - quote: >-
+    modality:
+    testability:
+    section:
+- candidate: 2
+  section: "4"
+  lines: 184-185
+  keywords: [MUST]
+  source: |-
+    Operation objects MUST have exactly one "op" member, whose value
+    indicates the operation to perform.  Its value MUST be one of "add",
+  sentence: >-
+    Operation objects MUST have exactly one "op" member, whose value indicates the operation to perform.
+  decision: keep
+  obligations:
+  - quote: >- 
+      Operation objects MUST have exactly one "op" member
+    modality: MUST
+    testability: testable
+    section:
+- candidate: 3
+  section: "4"
+  lines: 185-187
+  keywords: [MUST]
+  source: |-
+    indicates the operation to perform.  Its value MUST be one of "add",
+    "remove", "replace", "move", "copy", or "test"; other values are
+    errors.  The semantics of each object is defined below.
+  sentence: >-
+    Its value MUST be one of "add", "remove", "replace", "move", "copy", or "test"; other values are errors.
+  decision: keep
+  obligations:
+  - quote: >-
+      Its value MUST be one of "add", "remove", "replace", "move", "copy", or "test"
+    modality: MUST
+    testability: needs_human_decision
+    section:
+- candidate: 4
+  section: "4"
+  lines: 189
+  keywords: [MUST]
+  source: |-
+    Additionally, operation objects MUST have exactly one "path" member.
+  sentence: >-
+    Additionally, operation objects MUST have exactly one "path" member.
+  decision: keep
+  obligations:
+  - quote: >-
+      	operation objects MUST have exactly one "path" member.
+    modality: MUST
+    testability: testable
+    section:
+- candidate: 5
+  section: "4"
+  lines: 195-198
+  keywords: [MUST]
+  source: |-
+    operation (see the subsections below).  Members that are not
+    explicitly defined for the operation in question MUST be ignored
+    (i.e., the operation will complete as if the undefined member did not
+    appear in the object).
+  sentence: >-
+    Members that are not explicitly defined for the operation in question MUST be ignored (i.e., the operation will complete as if the undefined member did not appear in the object).
+  decision: keep
+  obligations:
+  - quote: >-
+      Members that are not explicitly defined for the operation in question MUST be ignored
+    modality: MUST
+    testability: testable
+    section:
+- candidate: 6
+  section: "4.1"
+  lines: 234-235
+  keywords: [MUST]
+  source: |-
+    The operation object MUST contain a "value" member whose content
+    specifies the value to be added.
+  sentence: >-
+    The operation object MUST contain a "value" member whose content specifies the value to be added.
+  decision: keep
+  obligations:
+  - quote: >-
+      The operation object MUST contain a "value" member
+    modality: MUST
+    testability: 	needs_human_decision
+    section: "4.1"
+- candidate: 7
+  section: "4.1"
+  lines: 241-242
+  keywords: [MUST]
+  source: |-
+    When the operation is applied, the target location MUST reference one
+    of:
+  sentence: >-
+    When the operation is applied, the target location MUST reference one of:
+  decision: keep
+  obligations:
+  - quote: >-
+      When the operation is applied, the target location MUST reference one of:
+    modality: MUST
+    testability: needs_human_decision
+    section:
+- candidate: 8
+  section: "4.1"
+  lines: 254-255
+  keywords: [MUST NOT]
+  source: |-
+    to the right.  The specified index MUST NOT be greater than the
+    number of elements in the array.  If the "-" character is used to
+  sentence: >-
+    The specified index MUST NOT be greater than the number of elements in the array.
+  decision: keep
+  obligations:
+  - quote: >-
+      The specified index MUST NOT be greater than the number of elements in the array.
+    modality: MUST_NOT
+    testability: testable
+    section:
+- candidate: 9
+  section: "4.2"
+  lines: 291
+  keywords: [MUST]
+  source: |-
+    The target location MUST exist for the operation to be successful.
+  sentence: >-
+    The target location MUST exist for the operation to be successful.
+  decision: keep
+  obligations:
+  - quote: >-
+      The target location MUST exist for the operation to be successful.
+    modality: MUST
+    testability: needs_human_decision
+    section: "4.2"
+- candidate: 10
+  section: "4.3"
+  lines: 303-304
+  keywords: [MUST]
+  source: |-
+    with a new value.  The operation object MUST contain a "value" member
+    whose content specifies the replacement value.
+  sentence: >-
+    The operation object MUST contain a "value" member whose content specifies the replacement value.
+  decision: keep
+  obligations:
+  - quote: >-
+      	The operation object MUST contain a "value" member
+    modality: MUST
+    testability: needs_human_decision
+    section: "4.3"
+- candidate: 11
+  section: "4.3"
+  lines: 306
+  keywords: [MUST]
+  source: |-
+    The target location MUST exist for the operation to be successful.
+  sentence: >-
+    The target location MUST exist for the operation to be successful.
+  decision: keep
+  obligations:
+  - quote: >-
+      The target location MUST exist for the operation to be successful.
+    modality: MUST
+    testability: needs_human_decision
+    section: "4.3"
+- candidate: 12
+  section: "4.4"
+  lines: 321-323
+  keywords: [MUST]
+  source: |-
+    The operation object MUST contain a "from" member, which is a string
+    containing a JSON Pointer value that references the location in the
+    target document to move the value from.
+  sentence: >-
+    The operation object MUST contain a "from" member, which is a string containing a JSON Pointer value that references the location in the target document to move the value from.
+  decision: keep
+  obligations:
+  - quote: >-
+      The operation object MUST contain a "from" member
+    modality: MUST
+    testability: needs_human_decision
+    section: "4.4"
+- candidate: 13
+  section: "4.4"
+  lines: 325
+  keywords: [MUST]
+  source: |-
+    The "from" location MUST exist for the operation to be successful.
+  sentence: >-
+    The "from" location MUST exist for the operation to be successful.
+  decision: keep
+  obligations:
+  - quote: >-
+      The "from" location MUST exist for the operation to be successful.
+    modality: MUST
+    testability: testable
+    section: "4.4"
+- candidate: 14
+  section: "4.4"
+  lines: 343-344
+  keywords: [MUST NOT]
+  source: |-
+    The "from" location MUST NOT be a proper prefix of the "path"
+    location; i.e., a location cannot be moved into one of its children.
+  sentence: >-
+    The "from" location MUST NOT be a proper prefix of the "path" location; i.e., a location cannot be moved into one of its children.
+  decision: keep
+  obligations:
+  - quote: >-
+      The "from" location MUST NOT be a proper prefix of the "path" location
+    modality: MUST_NOT
+    testability: testable
+    section:
+- candidate: 15
+  section: "4.5"
+  lines: 351-353
+  keywords: [MUST]
+  source: |-
+    The operation object MUST contain a "from" member, which is a string
+    containing a JSON Pointer value that references the location in the
+    target document to copy the value from.
+  sentence: >-
+    The operation object MUST contain a "from" member, which is a string containing a JSON Pointer value that references the location in the target document to copy the value from.
+  decision: keep
+  obligations:
+  - quote: >-
+      The operation object MUST contain a "from" member
+    modality: MUST
+    testability: needs_human_decision
+    section: "4.5"
+- candidate: 16
+  section: "4.5"
+  lines: 355
+  keywords: [MUST]
+  source: |-
+    The "from" location MUST exist for the operation to be successful.
+  sentence: >-
+    The "from" location MUST exist for the operation to be successful.
+  decision: keep
+  obligations:
+  - quote: >-
+      The "from" location MUST exist for the operation to be successful.
+    modality: MUST
+    testability: testable
+    section: "4.5"
+- candidate: 17
+  section: "4.6"
+  lines: 369-370
+  keywords: [MUST]
+  source: |-
+    The operation object MUST contain a "value" member that conveys the
+    value to be compared to the target location's value.
+  sentence: >-
+    The operation object MUST contain a "value" member that conveys the value to be compared to the target location's value.
+  decision: keep
+  obligations:
+  - quote: >-
+      The operation object MUST contain a "value" member
+    modality: MUST
+    testability: needs_human_decision
+    section: "4.6"
+- candidate: 18
+  section: "4.6"
+  lines: 372-373
+  keywords: [MUST]
+  source: |-
+    The target location MUST be equal to the "value" value for the
+    operation to be considered successful.
+  sentence: >-
+    The target location MUST be equal to the "value" value for the operation to be considered successful.
+  decision: keep
+  obligations:
+  - quote: >-
+      The target location MUST be equal to the "value" value for the operation to be considered successful.
+    modality: MUST
+    testability: needs_human_decision
+    section:
+- candidate: 19
+  section: "5"
+  lines: 419-422
+  keywords: [SHOULD, SHALL NOT]
+  source: |-
+    If a normative requirement is violated by a JSON Patch document, or
+    if an operation is not successful, evaluation of the JSON Patch
+    document SHOULD terminate and application of the entire patch
+    document SHALL NOT be deemed successful.
+  sentence: >-
+    If a normative requirement is violated by a JSON Patch document, or if an operation is not successful, evaluation of the JSON Patch document SHOULD terminate and application of the entire patch document SHALL NOT be deemed successful.
+  decision: keep
+  obligations:
+  - quote: >-
+      evaluation of the JSON Patch document SHOULD terminate
+    modality: SHOULD
+    testability: needs_human_decision
+  - quote: >-
+      application of the entire patch document SHALL NOT be deemed successful
+    modality: MUST_NOT
+    testability: needs_human_decision
+    section:
+- candidate: 20
+  section: "A.13"
+  lines: 912-914
+  keywords: [SHOULD]
+  source: |-
+    because it contains a later "op":"remove" element.  JSON requires
+    that object member names be unique with a "SHOULD" requirement, and
+    there is no standard error handling for duplicates.
+  sentence: >-
+    JSON requires that object member names be unique with a "SHOULD" requirement, and there is no standard error handling for duplicates.
+  decision: drop
+  obligations:
+  - quote: >-
+    modality:
+    testability:
+    section:
