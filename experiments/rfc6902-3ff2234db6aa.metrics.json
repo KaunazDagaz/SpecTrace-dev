@@ -1,0 +1,42 @@
+{
+  "run_id": "rfc6902-3ff2234db6aa",
+  "document_id": "rfc6902",
+  "arm": "B",
+  "arm_name": "pipeline",
+  "model": "gemini-3.5-flash-lite",
+  "channel": "Gemini API",
+  "reproducible": true,
+  "finish_reason": null,
+  "claimed": {
+    "claims": 18,
+    "quotes_found": 18,
+    "quotes_found_once": 14,
+    "quotes_found_more_than_once": 4,
+    "quotes_not_found": 0,
+    "claims_without_quote": 0,
+    "not_located_share": 0,
+    "verification_rate": 0.7778,
+    "found_more_than_once_share": 0.2222
+  },
+  "delivered": {
+    "claims": 12,
+    "quotes_found": 12,
+    "quotes_found_once": 12,
+    "quotes_found_more_than_once": 0,
+    "quotes_not_found": 0,
+    "claims_without_quote": 0,
+    "not_located_share": 0,
+    "verification_rate": 1,
+    "found_more_than_once_share": 0
+  },
+  "cost": {
+    "calls": 13,
+    "input_tokens": 11708,
+    "output_tokens": 3374,
+    "whole_document_call_input_tokens": 7980,
+    "whole_document_call_output_tokens": 1153,
+    "cache_hits": 13,
+    "cache_hit_rate": 1
+  },
+  "capture": null
+}

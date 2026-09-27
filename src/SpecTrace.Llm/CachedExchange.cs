@@ -20,4 +20,5 @@ public sealed record CachedRequest(
 public sealed record CachedResponse(
     [property: JsonPropertyName("text")] string Text,
     [property: JsonPropertyName("inputTokens")] int InputTokens,
-    [property: JsonPropertyName("outputTokens")] int OutputTokens);
+    [property: JsonPropertyName("outputTokens")] int OutputTokens,
+    [property: JsonPropertyName("finishReason")] string? FinishReason = null);

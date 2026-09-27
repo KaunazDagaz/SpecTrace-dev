@@ -1,0 +1,32 @@
+{
+  "run_id": "rfc6902-baseline-4227a0d51f3d",
+  "document_id": "rfc6902",
+  "arm": "A",
+  "arm_name": "baseline",
+  "model": "gemini-3.5-flash-lite",
+  "channel": "Gemini API",
+  "reproducible": true,
+  "finish_reason": "STOP",
+  "claimed": {
+    "claims": 16,
+    "quotes_found": 3,
+    "quotes_found_once": 1,
+    "quotes_found_more_than_once": 2,
+    "quotes_not_found": 13,
+    "claims_without_quote": 0,
+    "not_located_share": 0.8125,
+    "verification_rate": 0.0625,
+    "found_more_than_once_share": 0.125
+  },
+  "delivered": null,
+  "cost": {
+    "calls": 1,
+    "input_tokens": 7647,
+    "output_tokens": 1788,
+    "whole_document_call_input_tokens": 7647,
+    "whole_document_call_output_tokens": 1788,
+    "cache_hits": 1,
+    "cache_hit_rate": 1
+  },
+  "capture": null
+}

@@ -49,6 +49,13 @@ public sealed class TestCaseTests
     }
 
     [Fact]
+    public void AnEmptyInputIsAValidInputButNoInputAtAllIsNot()
+    {
+        Assert.Equal(string.Empty, Case(input: "").Input);
+        Assert.Throws<ArgumentNullException>(() => Case(input: null!));
+    }
+
+    [Fact]
     public void OnlyARejectedCaseStopsCountingTowardCoverage()
     {
         Assert.True(Case(status: ReviewStatus.Proposed).CountsTowardCoverage);
@@ -60,6 +67,7 @@ public sealed class TestCaseTests
     private static TestCase Case(
         IEnumerable<string>? requirementIds = null,
         string title = "Adding a member to an object succeeds",
+        string input = "An add operation.",
         string expectedResult = "The member is present in the result.",
         ReviewStatus status = ReviewStatus.Proposed) =>
         new(
@@ -68,7 +76,7 @@ public sealed class TestCaseTests
             title,
             CaseType.Positive,
             "A target JSON object.",
-            "An add operation.",
+            input,
             expectedResult,
             status);
 }

@@ -203,7 +203,7 @@ public sealed class TestCaseGenerator
             title,
             type,
             ReadString(element, "precondition", mayBeBlank: true),
-            ReadString(element, "input", mayBeBlank: false),
+            ReadString(element, "input", mayBeBlank: true),
             ReadString(element, "expected_result", mayBeBlank: false));
     }
 

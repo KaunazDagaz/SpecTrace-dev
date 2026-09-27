@@ -1,0 +1,31 @@
+{
+  "run_id": "rfc10050-chat-2026-09-27",
+  "document_id": "rfc10050",
+  "arm": "A0",
+  "arm_name": "chat",
+  "model": "Gemini 3.5 Flash-Lite",
+  "channel": "gemini.google.com",
+  "reproducible": false,
+  "finish_reason": null,
+  "claimed": {
+    "claims": 21,
+    "quotes_found": 19,
+    "quotes_found_once": 18,
+    "quotes_found_more_than_once": 1,
+    "quotes_not_found": 2,
+    "claims_without_quote": 0,
+    "not_located_share": 0.0952,
+    "verification_rate": 0.8571,
+    "found_more_than_once_share": 0.0476
+  },
+  "delivered": null,
+  "cost": null,
+  "capture": {
+    "transcript": "a0/rfc10050.md",
+    "captured_at": "2026-09-27T11:55:00+03:00",
+    "interface": "gemini.google.com",
+    "mode": "default, no Gems, no Deep Research",
+    "input": "file attachment",
+    "share_link": "https://share.gemini.google/nnTkgLTXUXLp"
+  }
+}

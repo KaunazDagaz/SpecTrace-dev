@@ -86,13 +86,16 @@ public sealed class GeminiLlmClient : ILlmClient
         {
             writer.WriteStartObject();
 
-            writer.WriteStartObject("systemInstruction");
-            writer.WriteStartArray("parts");
-            writer.WriteStartObject();
-            writer.WriteString("text", request.SystemPrompt);
-            writer.WriteEndObject();
-            writer.WriteEndArray();
-            writer.WriteEndObject();
+            if (request.SystemPrompt.Length > 0)
+            {
+                writer.WriteStartObject("systemInstruction");
+                writer.WriteStartArray("parts");
+                writer.WriteStartObject();
+                writer.WriteString("text", request.SystemPrompt);
+                writer.WriteEndObject();
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+            }
 
             writer.WriteStartArray("contents");
             writer.WriteStartObject();
@@ -151,13 +154,17 @@ public sealed class GeminiLlmClient : ILlmClient
 
             var candidate = candidates[0];
 
-            if (candidate.TryGetProperty("finishReason", out var finishReason)
-                && finishReason.GetString() is { } reason
-                && !string.Equals(reason, "STOP", StringComparison.Ordinal))
+            var reason = candidate.TryGetProperty("finishReason", out var finishReason)
+                ? finishReason.GetString()
+                : null;
+
+            if (request.JsonSchema is not null
+                && reason is not null
+                && !string.Equals(reason, LlmResponse.CompleteFinishReason, StringComparison.Ordinal))
             {
                 throw new LlmResponseException(
-                    $"Gemini stopped for reason '{reason}', not 'STOP', so the response is "
-                    + $"incomplete and is not usable. Raise MaxOutputTokens (currently "
+                    $"Gemini stopped for reason '{reason}', not '{LlmResponse.CompleteFinishReason}', so the "
+                    + "structured response is incomplete and is not usable. Raise MaxOutputTokens (currently "
                     + $"{request.MaxOutputTokens}) if the reason is MAX_TOKENS.");
             }
 
@@ -179,12 +186,13 @@ public sealed class GeminiLlmClient : ILlmClient
             if (text.Length == 0)
             {
                 throw new LlmResponseException(
-                    $"Gemini returned a candidate with no text. Body: {Truncate(body)}");
+                    $"Gemini returned a candidate with no text, finish reason '{reason ?? "not reported"}'. "
+                    + $"Body: {Truncate(body)}");
             }
 
             var (inputTokens, outputTokens) = ReadUsage(root);
 
-            return new LlmResponse(text.ToString(), inputTokens, outputTokens, FromCache: false);
+            return new LlmResponse(text.ToString(), inputTokens, outputTokens, FromCache: false, reason);
         }
     }
 

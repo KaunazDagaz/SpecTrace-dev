@@ -13,6 +13,20 @@ public static class SpecTraceCli
 
     public const string OfflineFlag = "--offline";
 
+    public const string HeadlineFlag = "--headline";
+
+    public const string PipelineArm = "pipeline";
+
+    public const string ExperimentsDirectory = "experiments";
+
+    public const string TranscriptsDirectory = "experiments/a0";
+
+    public const string HeadlineCommandPrefix = "dotnet run --project src/SpecTrace.Cli -- score --headline --documents ";
+
+    private static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(3);
+
+    private static readonly TimeSpan BaselineCallTimeout = TimeSpan.FromMinutes(20);
+
     public static async Task<int> RunAsync(string[] args, CliHost host, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -36,6 +50,9 @@ public static class SpecTraceCli
 
             case "run":
                 return await RunCommandAsync(args[1..], host, cancellationToken).ConfigureAwait(false);
+
+            case "score":
+                return await ScoreAsync(args[1..], host, cancellationToken).ConfigureAwait(false);
 
             default:
                 host.Error.WriteLine($"'{args[0]}' is not implemented yet.");
@@ -64,6 +81,22 @@ public static class SpecTraceCli
     private static Task<int> RunCommandAsync(string[] args, CliHost host, CancellationToken cancellationToken) =>
         ExecuteAsync("run", args, host, async (invocation, token) =>
         {
+            if (invocation.Arm == BaselineRun.Arm)
+            {
+                var baseline = await BaselineRun
+                    .ExecuteAsync(invocation.DocumentPath, invocation.Client, invocation.Model, host.Prompts.Baseline, TimeProvider.System, token)
+                    .ConfigureAwait(false);
+
+                var baselineDirectory = invocation.OutputDirectory ?? Path.Combine("runs", baseline.RunId);
+
+                await RunArtifacts
+                    .WriteBaselineAsync(baseline, baselineDirectory, token)
+                    .ConfigureAwait(false);
+
+                WriteBaselineSummary(host.Out, baseline, invocation, baselineDirectory);
+                return;
+            }
+
             var result = await PipelineRun
                 .ExecuteAsync(invocation.DocumentPath, invocation.Client, invocation.Model, host.Prompts, TimeProvider.System, token)
                 .ConfigureAwait(false);
@@ -76,6 +109,168 @@ public static class SpecTraceCli
 
             WriteRunSummary(host.Out, result, invocation, outputDirectory);
         }, cancellationToken);
+
+    private static async Task<int> ScoreAsync(string[] args, CliHost host, CancellationToken cancellationToken)
+    {
+        if (!TryParse(args, host.Error, out var values, out var flags))
+        {
+            return ExitUsage;
+        }
+
+        var output = values.GetValueOrDefault("--out", ExperimentsDirectory);
+
+        try
+        {
+            if (flags.Contains(HeadlineFlag))
+            {
+                return await HeadlineAsync(values, output, host, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (values.TryGetValue("--claims", out var claims))
+            {
+                return await ClaimsAsync(claims, values, output, host, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception exception) when (exception is LlmException
+            or InvalidTranscriptException
+            or UnparseableAnswerException
+            or InvalidOperationException
+            or FileNotFoundException
+            or DirectoryNotFoundException)
+        {
+            host.Error.WriteLine(exception.Message);
+            host.Error.WriteLine("Nothing was scored.");
+            return ExitFailure;
+        }
+
+        if (values.ContainsKey("--run") || values.ContainsKey("--gold"))
+        {
+            host.Error.WriteLine("score --run <id> --gold <path> is not implemented yet. It lands with SPEC-12.");
+            return ExitUsage;
+        }
+
+        host.Error.WriteLine("score needs --claims <file> --document <path>, or --headline --documents <path,path>.");
+        WriteUsage(host.Error);
+        return ExitUsage;
+    }
+
+    private static async Task<int> ClaimsAsync(
+        string claims,
+        Dictionary<string, string> values,
+        string output,
+        CliHost host,
+        CancellationToken cancellationToken)
+    {
+        if (!values.TryGetValue("--document", out var documentPath))
+        {
+            host.Error.WriteLine("score --claims needs --document <path>.");
+            return ExitUsage;
+        }
+
+        var score = await Experiment
+            .ChatAsync(claims, documentPath, host.Prompts.Baseline, output, cancellationToken)
+            .ConfigureAwait(false);
+        var written = await ExperimentArtifacts
+            .WriteMetricsAsync(score.Metrics, output, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var claim in score.Claims)
+        {
+            host.Out.WriteLine(
+                $"{claim.Claim.Ordinal,3}  {RunArtifacts.Spell(claim.Outcome),-21} line {claim.Claim.AnswerLine,-4} "
+                + $"{claim.Claim.Quote ?? "(no quote)"}");
+        }
+
+        host.Out.WriteLine();
+        WriteTally(host.Out, score.Metrics);
+        host.Out.WriteLine();
+        host.Out.WriteLine($"written to     {written}");
+        host.Out.WriteLine();
+        host.Out.WriteLine(
+            "This arm was captured by hand from a chat interface. Its scoring is reproducible; the answer is not.");
+
+        return ExitSuccess;
+    }
+
+    private static async Task<int> HeadlineAsync(
+        Dictionary<string, string> values,
+        string output,
+        CliHost host,
+        CancellationToken cancellationToken)
+    {
+        if (!values.TryGetValue("--documents", out var list))
+        {
+            host.Error.WriteLine("score --headline needs --documents <path,path>.");
+            return ExitUsage;
+        }
+
+        var documents = list.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var model = values.GetValueOrDefault("--model", LlmClientFactory.DefaultModel);
+
+        using var httpClient = new HttpClient(host.Network, disposeHandler: false) { Timeout = CallTimeout };
+
+        var client = LlmClientFactory.Create(
+            httpClient,
+            values.GetValueOrDefault("--cache", "cache"),
+            offline: true,
+            apiKey: null);
+
+        var rows = await Experiment
+            .MeasureAsync(
+                documents,
+                values.GetValueOrDefault("--transcripts", TranscriptsDirectory),
+                output,
+                client,
+                model,
+                host.Prompts,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var row in rows)
+        {
+            if (row.Metrics is { } metrics)
+            {
+                await ExperimentArtifacts.WriteMetricsAsync(metrics, output, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        await ExperimentArtifacts
+            .WriteHeadlineAsync(rows, HeadlineCommandPrefix + list, output, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var row in rows)
+        {
+            host.Out.WriteLine(
+                $"{row.DocumentId,-12} {ExperimentArtifacts.Code(row.Arm),-3} {ExperimentArtifacts.Name(row.Arm),-9} "
+                + (row.Metrics is { } metrics
+                    ? $"{metrics.Claimed.NotLocated} of {metrics.Claimed.Claims} claims not located"
+                    : $"not scored: {row.NotScored}"));
+        }
+
+        host.Out.WriteLine();
+        host.Out.WriteLine("mode           offline, replayed from the cache; no key is read and no request is sent");
+        host.Out.WriteLine(
+            $"written to     {Path.Combine(output, ExperimentArtifacts.HeadlineFile)} and one metrics file per scored row");
+
+        return ExitSuccess;
+    }
+
+    private static void WriteTally(TextWriter output, ArmMetrics metrics)
+    {
+        var tally = metrics.Claimed;
+
+        output.WriteLine($"document       {metrics.DocumentId}");
+        output.WriteLine($"arm            {ExperimentArtifacts.Code(metrics.Arm)} {ExperimentArtifacts.Name(metrics.Arm)}");
+        output.WriteLine($"model          {metrics.Model} ({metrics.Channel})");
+        output.WriteLine($"claims         {tally.Claims}");
+        output.WriteLine($"found once     {tally.FoundOnce}");
+        output.WriteLine($"found more     {tally.FoundMoreThanOnce} than once");
+        output.WriteLine($"not found      {tally.NotFound}");
+        output.WriteLine($"no quote       {tally.WithoutQuote}");
+        output.WriteLine(
+            $"not located    {tally.NotLocated} of {tally.Claims}"
+            + (tally.NotLocatedShare is null ? string.Empty : $", {ExperimentArtifacts.Percent(tally.NotLocatedShare)}"));
+    }
 
     private static async Task<int> ExecuteAsync(
         string command,
@@ -95,6 +290,14 @@ public static class SpecTraceCli
             return ExitUsage;
         }
 
+        var arm = values.GetValueOrDefault("--arm", PipelineArm);
+
+        if (arm != PipelineArm && (command != "run" || arm != BaselineRun.Arm))
+        {
+            host.Error.WriteLine($"{command} does not take --arm {arm}. run takes --arm {PipelineArm} (the default) or --arm {BaselineRun.Arm}.");
+            return ExitUsage;
+        }
+
         var model = values.GetValueOrDefault("--model", LlmClientFactory.DefaultModel);
         var cacheDirectory = values.GetValueOrDefault("--cache", "cache");
         var offline = flags.Contains(OfflineFlag)
@@ -102,7 +305,7 @@ public static class SpecTraceCli
 
         using var httpClient = new HttpClient(host.Network, disposeHandler: false)
         {
-            Timeout = TimeSpan.FromMinutes(3),
+            Timeout = arm == BaselineRun.Arm ? BaselineCallTimeout : CallTimeout,
         };
 
         try
@@ -113,7 +316,7 @@ public static class SpecTraceCli
                 offline,
                 GeminiLlmClient.ApiKeyFrom(host.Environment(GeminiLlmClient.ApiKeyVariable)));
 
-            var invocation = new Invocation(documentPath, client, model, values.GetValueOrDefault("--out"), offline);
+            var invocation = new Invocation(documentPath, client, model, values.GetValueOrDefault("--out"), offline, arm);
 
             await body(invocation, cancellationToken).ConfigureAwait(false);
             return ExitSuccess;
@@ -147,7 +350,7 @@ public static class SpecTraceCli
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == OfflineFlag)
+            if (args[i] == OfflineFlag || args[i] == HeadlineFlag)
             {
                 flags.Add(args[i]);
                 continue;
@@ -252,6 +455,41 @@ public static class SpecTraceCli
             + "is fully covered: it shows only whether each requirement in the register has a proposed case.");
     }
 
+    private static void WriteBaselineSummary(
+        TextWriter output,
+        BaselineRunResult result,
+        Invocation invocation,
+        string outputDirectory)
+    {
+        var response = result.Response;
+
+        output.WriteLine($"document       {result.DocumentId}");
+        output.WriteLine($"arm            {BaselineRun.Arm}: one naive prompt, no schema, no verification in the loop");
+        output.WriteLine($"model          {invocation.Model}");
+        output.WriteLine($"mode           {(invocation.Offline ? "offline" : "online")}");
+        output.WriteLine(
+            $"response       {(response.FromCache ? "from cache" : "from provider")}, "
+            + $"{response.InputTokens} tokens in, {response.OutputTokens} out");
+        output.WriteLine($"finish reason  {response.FinishReason ?? "not recorded"}");
+        output.WriteLine();
+
+        if (result.Answer.Tally is { } tally)
+        {
+            output.WriteLine($"claims         {tally.Claims} parsed from the answer");
+            output.WriteLine($"located        {tally.FoundOnce} exactly once");
+            output.WriteLine($"ambiguous      {tally.FoundMoreThanOnce} found more than once");
+            output.WriteLine($"not found      {tally.NotFound}");
+            output.WriteLine($"no quote       {tally.WithoutQuote}");
+        }
+        else
+        {
+            output.WriteLine($"not scored     {result.Answer.Failure}");
+        }
+
+        output.WriteLine();
+        output.WriteLine($"written to     {outputDirectory}");
+    }
+
     private static void WriteUsage(TextWriter output)
     {
         output.WriteLine("Usage: spectrace <command> [options]");
@@ -259,8 +497,15 @@ public static class SpecTraceCli
         output.WriteLine("Commands:");
         output.WriteLine("  run     --document <path> [--offline] [--model <id>] [--cache <dir>] [--out <dir>]");
         output.WriteLine("          extract, verify, generate test cases, assemble the matrix and decision queue");
+        output.WriteLine("  run     --document <path> --arm baseline [--offline] [--model <id>] [--cache <dir>] [--out <dir>]");
+        output.WriteLine("          one naive prompt for requirements, quotes and test cases, scored by the same verifier");
         output.WriteLine("  extract --document <path> [--offline] [--model <id>] [--cache <dir>] [--out <dir>]");
         output.WriteLine("          ask the model for requirements and keep only those located in the source");
+        output.WriteLine();
+        output.WriteLine("  score   --claims <file> --document <path> [--out <dir>]");
+        output.WriteLine("          score an externally produced answer, such as a chat transcript, by the same parser and verifier");
+        output.WriteLine("  score   --headline --documents <path,path> [--transcripts <dir>] [--cache <dir>] [--out <dir>]");
+        output.WriteLine("          replay every arm offline and write the metrics files and experiments/headline.md");
         output.WriteLine();
         output.WriteLine("Not implemented yet — each lands with its own task:");
         output.WriteLine("  score   --run <id> --gold <path>  score a run against a gold standard");
@@ -281,5 +526,6 @@ public static class SpecTraceCli
         ILlmClient Client,
         string Model,
         string? OutputDirectory,
-        bool Offline);
+        bool Offline,
+        string Arm);
 }

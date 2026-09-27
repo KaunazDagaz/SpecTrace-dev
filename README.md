@@ -19,7 +19,7 @@ versions. `AGENTS.md` and `CLAUDE.md` here describe how to work in the code.
 
 ## Status
 
-Milestone M1 (vertical slice) is in progress. What exists today:
+Milestone M1 (vertical slice) is accepted and M2 is in progress. What exists today:
 
 - the corpus (`corpus/rfc6902.txt`), the whitespace normalisation with its offset map, and the
   section index;
@@ -32,10 +32,14 @@ Milestone M1 (vertical slice) is in progress. What exists today:
   cases and the human decision queue visible in `matrix.html`;
 - `run`, which does all of the above and replays offline from the committed cache;
 - the committed reference run in `runs/reference/`, which CI regenerates offline on Linux and
-  Windows and compares byte for byte.
+  Windows and compares byte for byte;
+- the naive baseline arm and the scoring of an externally produced answer, such as a chat
+  transcript, through one parser and the same verifier, and `experiments/headline.md`: per arm and
+  document, the share of claimed requirements whose quote cannot be located in the source. CI
+  recomputes it offline and fails if it differs from the committed file.
 
-Not implemented yet, each with its own task in the next milestone: the review UI, scoring and
-the baseline.
+Not implemented yet, each with its own task in this milestone: the review UI, the gold standard
+and scoring against it.
 
 ## Prerequisites
 
@@ -101,6 +105,25 @@ any request not already in `cache/`, which needs `GEMINI_API_KEY` set in the env
 does not claim the specification is fully covered: only that each requirement in the register
 does or does not have a proposed case.
 
+The experiment, all offline except the first command without `--offline`:
+
+```
+# the naive baseline: one prompt, the whole document, no schema, scored by the same verifier
+dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --arm baseline --offline
+
+# score an answer captured by hand from a chat interface (front matter + the answer, unchanged)
+dotnet run --project src/SpecTrace.Cli -- score --claims experiments/a0/rfc6902.md --document corpus/rfc6902.txt
+
+# rebuild experiments/headline.md and every metrics file it names; always replays from cache/
+dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt,corpus/rfc10050.txt
+```
+
+`run --arm baseline` writes `manifest.json`, the answer as `answer.md`, and `claims.json` (every
+claim the parser found, the line it came from, and whether its quote was found once, more than
+once or not at all) under `runs/{runId}/`. The chat transcripts in `experiments/a0/` are written
+by a person, never by the tooling. The exact `--documents` list CI uses is the one printed at
+the top of `experiments/headline.md`.
+
 Documented for later, and currently not implemented — the CLI prints usage and exits with a
 non-zero status if you pass it:
 
@@ -115,7 +138,7 @@ src/SpecTrace.Core/        verifiable core: domain types, normalisation, spans, 
                            no network, no file I/O, no LLM dependency
 src/SpecTrace.Llm/         probabilistic edge: one client interface, cached and swappable
 src/SpecTrace.Pipeline/    orchestration of the two halves, prompt files
-src/SpecTrace.Cli/         thin entry point: run and extract today; score, export later
+src/SpecTrace.Cli/         thin entry point: run, extract and score today; export later
 tests/SpecTrace.Core.Tests/       unit tests for the core
 tests/SpecTrace.Llm.Tests/        client, cache and backoff, all against fakes; one live check
 tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline end-to-end run against runs/reference

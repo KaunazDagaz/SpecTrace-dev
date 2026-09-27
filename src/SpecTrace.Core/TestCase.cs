@@ -16,7 +16,7 @@ public sealed record TestCase
         ArgumentNullException.ThrowIfNull(requirementIds);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentNullException.ThrowIfNull(precondition);
-        ArgumentException.ThrowIfNullOrWhiteSpace(input);
+        ArgumentNullException.ThrowIfNull(input);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedResult);
 
         var ids = requirementIds.ToArray();

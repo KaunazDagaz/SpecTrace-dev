@@ -14,6 +14,8 @@ public static class RunArtifacts
     public const string TestCasesFile = "test-cases.json";
     public const string MatrixFile = "matrix.json";
     public const string MatrixHtmlFile = "matrix.html";
+    public const string AnswerFile = "answer.md";
+    public const string ClaimsFile = "claims.json";
 
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -68,6 +70,33 @@ public static class RunArtifacts
             run.HumanDecisions,
             run.DecisionQueue,
             directory,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task WriteBaselineAsync(
+        BaselineRunResult run,
+        string directory,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        Directory.CreateDirectory(directory);
+
+        await WriteFileAsync(
+            Path.Combine(directory, ManifestFile),
+            ManifestJson.From(run.Manifest),
+            cancellationToken).ConfigureAwait(false);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(directory, AnswerFile),
+            run.Response.Text,
+            Utf8WithoutMark,
+            cancellationToken).ConfigureAwait(false);
+
+        await WriteFileAsync(
+            Path.Combine(directory, ClaimsFile),
+            ClaimsJson.From(run.RunId, run.Response.FinishReason, run.Answer),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -143,6 +172,15 @@ public static class RunArtifacts
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
     };
 
+    public static string Spell(ClaimOutcome outcome) => outcome switch
+    {
+        ClaimOutcome.FoundOnce => "found_once",
+        ClaimOutcome.FoundMoreThanOnce => "found_more_than_once",
+        ClaimOutcome.NotFound => "not_found",
+        ClaimOutcome.WithoutQuote => "without_quote",
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, null),
+    };
+
     public static string Spell(CoverageStatus status) => status switch
     {
         CoverageStatus.Covered => "covered",
@@ -207,6 +245,36 @@ public static class RunArtifacts
             manifest.OutputTokens,
             manifest.PipelineVersion,
             manifest.GitSha);
+    }
+
+    private sealed record ClaimsJson(
+        [property: JsonPropertyName("run_id")] string RunId,
+        [property: JsonPropertyName("finish_reason")] string? FinishReason,
+        [property: JsonPropertyName("parse_failure")] string? ParseFailure,
+        [property: JsonPropertyName("claims")] IReadOnlyList<ScoredClaimJson> Claims)
+    {
+        public static ClaimsJson From(string runId, string? finishReason, ScoredAnswer answer) => new(
+            runId,
+            finishReason,
+            answer.Failure,
+            answer.Claims.Select(ScoredClaimJson.From).ToList());
+    }
+
+    private sealed record ScoredClaimJson(
+        [property: JsonPropertyName("ordinal")] int Ordinal,
+        [property: JsonPropertyName("item")] string Item,
+        [property: JsonPropertyName("answer_line")] int AnswerLine,
+        [property: JsonPropertyName("source")] string Source,
+        [property: JsonPropertyName("quote")] string? Quote,
+        [property: JsonPropertyName("outcome")] string Outcome)
+    {
+        public static ScoredClaimJson From(ScoredClaim scored) => new(
+            scored.Claim.Ordinal,
+            scored.Claim.Item,
+            scored.Claim.AnswerLine,
+            scored.Claim.Source,
+            scored.Claim.Quote,
+            Spell(scored.Outcome));
     }
 
     private sealed record RequirementJson(

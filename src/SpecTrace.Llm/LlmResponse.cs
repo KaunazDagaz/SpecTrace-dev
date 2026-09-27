@@ -4,4 +4,8 @@ public sealed record LlmResponse(
     string Text,
     int InputTokens,
     int OutputTokens,
-    bool FromCache);
+    bool FromCache,
+    string? FinishReason = null)
+{
+    public const string CompleteFinishReason = "STOP";
+}

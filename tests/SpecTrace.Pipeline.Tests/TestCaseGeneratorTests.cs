@@ -44,6 +44,15 @@ public sealed class TestCaseGeneratorTests
         Assert.Equal(string.Empty, Assert.Single(answer.Cases).Precondition);
     }
 
+    [Fact]
+    public void AnEmptyInputIsAcceptedBecauseTheEmptyStringIsAnInputOfItsOwn()
+    {
+        var answer = TestCaseGenerator.Parse(
+            """{ "cases": [ { "title": "Reject a name below the minimum size", "type": "boundary", "precondition": "p", "input": "", "expected_result": "Input is rejected" } ] }""");
+
+        Assert.Equal(string.Empty, Assert.Single(answer.Cases).Input);
+    }
+
     [Theory]
     [InlineData("Here are the test cases:")]
     [InlineData("```json\n{ \"cases\": [], \"blocked_reason\": \"x\" }\n```")]
@@ -57,7 +66,6 @@ public sealed class TestCaseGeneratorTests
     [InlineData("""{ "cases": [ { "title": "t", "type": "positive", "precondition": "p", "input": "i", "expected_result": "e" } ], "blocked_reason": "also blocked" }""")]
     [InlineData("""{ "cases": [ { "title": "t", "type": "exploratory", "precondition": "p", "input": "i", "expected_result": "e" } ] }""")]
     [InlineData("""{ "cases": [ { "title": " ", "type": "positive", "precondition": "p", "input": "i", "expected_result": "e" } ] }""")]
-    [InlineData("""{ "cases": [ { "title": "t", "type": "positive", "precondition": "p", "input": "", "expected_result": "e" } ] }""")]
     [InlineData("""{ "cases": [ { "title": "t", "type": "positive", "precondition": "p", "input": "i", "expected_result": " " } ] }""")]
     [InlineData("""{ "cases": [ { "title": "t", "type": "positive", "precondition": null, "input": "i", "expected_result": "e" } ] }""")]
     [InlineData("""{ "cases": [ { "title": 7, "type": "positive", "precondition": "p", "input": "i", "expected_result": "e" } ] }""")]
