@@ -134,6 +134,10 @@ Below the threshold, and so not counted:
 its sentence quotes six words, so the same mechanical change costs twelve edits. The threshold separates it
 from the others by the density of quotation marks, not by how far the model strayed.
 
+Claim 2 is therefore a genuine reach that the measure misses. The threshold stays at 0.90, as fixed before the
+analysis was run: lowering it after seeing this case would tune the analysis to the data. The figure of 12 is a
+floor on what the baseline reached and lost, not an estimate of it.
+
 *Agent's reading.* The exchange rate asked in the implementation plan §8.1, on this document:
 - Pipeline: zero unverifiable claims delivered, bought with 6 of 19 gold requirements moved from the register to
   the decision queue. None was lost to a non-verbatim quote.
@@ -160,6 +164,23 @@ sentence:
 
 They come from how the document is written, not from where in it they sit.
 
+### Testability of 9.1 and 11.1 against 13.1 and 16.1
+
+Testability is not scored in SPEC-12. The case was checked because the two sentences have the same shape but
+carry different testability in the gold standard:
+- 9.1 and 11.1, `The target location MUST exist for the operation to be successful.`, are `needs_human_decision`;
+- 13.1 and 16.1, `The "from" location MUST exist for the operation to be successful.`, are `testable`.
+
+*Agent's reading.* The annotation rules §4 judge testability from the quote alone, and on that test the
+difference holds:
+- Only "move" and "copy" have a "from" member, and both require it to exist, so the "from" quote fixes its
+  operations by itself. The rules' own §4 example rates a "from" quote `testable` on the same reasoning ("a test
+  sends a "move" whose "from" …").
+- The "target" quote holds for "remove" and "replace" but not for "add", "move" or "copy", whose target member
+  need not exist. Whether it holds depends on an operation the quote does not name.
+
+The annotation is consistent with the rules here, and the gold standard is unchanged.
+
 ## 5. Unmatched claims: verdicts for the student
 
 Every claim that matched no gold requirement at 50%. For each, choose **annotation miss** (the gold standard
@@ -170,24 +191,25 @@ Two facts for the verdicts, neither of them a verdict:
 - A0 chat claim 6 is the sentence the annotation rules §1 list as an example of what is not a requirement:
   "normative in effect, but it carries no keyword".
 - The 13 A baseline rows are not located. The counting rule makes each a false positive whatever the verdict.
-  Section 3 places 12 of them on gold requirements.
+  The fifth column, generated from section 3, shows where each lands. All 13 land on requirements the gold
+  standard holds: 12 at or above the similarity threshold, and claim 2 just below it.
 
-| Arm | Claim | Section | Quote | Verdict (annotation miss / model false positive) |
-|---|---|---|---|---|
-| A0 chat (illustrative) | 6 | 4.1 | However, the object itself or an array containing it does need to exist, and it remains an error for that not to be the case. | |
-| A baseline | 1 | not located | Operation objects MUST have exactly one 'op' member, whose value indicates the operation to perform. | |
-| A baseline | 2 | not located | Its value MUST be one of 'add', 'remove', 'replace', 'move', 'copy', or 'test'; other values are errors. | |
-| A baseline | 3 | not located | Additionally, operation objects MUST have exactly one 'path' member. | |
-| A baseline | 4 | not located | The operation object MUST contain a 'value' member whose content specifies the value to be added. | |
-| A baseline | 5 | not located | When the operation is applied, the target location MUST reference one of: [...] | |
-| A baseline | 8 | not located | The operation object MUST contain a 'value' member whose content specifies the replacement value. | |
-| A baseline | 10 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to move the value from. | |
-| A baseline | 11 | not located | The 'from' location MUST exist for the operation to be successful. | |
-| A baseline | 12 | not located | The 'from' location MUST NOT be a proper prefix of the 'path' location; i.e., a location cannot be moved into one of its children. | |
-| A baseline | 13 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to copy the value from. | |
-| A baseline | 14 | not located | The 'from' location MUST exist for the operation to be successful. | |
-| A baseline | 15 | not located | The operation object MUST contain a 'value' member that conveys the value to be compared to the target location's value. | |
-| A baseline | 16 | not located | The target location MUST be equal to the 'value' value for the operation to be considered successful. | |
+| Arm | Claim | Section | Quote | Closest gold requirement | Verdict (annotation miss / model false positive) |
+|---|---|---|---|---|---|
+| A0 chat (illustrative) | 6 | 4.1 | However, the object itself or an array containing it does need to exist, and it remains an error for that not to be the case. | — (located) | |
+| A baseline | 1 | not located | Operation objects MUST have exactly one 'op' member, whose value indicates the operation to perform. | 2.1 (similarity 0.980) | |
+| A baseline | 2 | not located | Its value MUST be one of 'add', 'remove', 'replace', 'move', 'copy', or 'test'; other values are errors. | 3.1 (similarity 0.885, below 0.90) | |
+| A baseline | 3 | not located | Additionally, operation objects MUST have exactly one 'path' member. | 4.1 (similarity 0.971) | |
+| A baseline | 4 | not located | The operation object MUST contain a 'value' member whose content specifies the value to be added. | 6.1 (similarity 0.979) | |
+| A baseline | 5 | not located | When the operation is applied, the target location MUST reference one of: [...] | 7.1 (similarity 0.937) | |
+| A baseline | 8 | not located | The operation object MUST contain a 'value' member whose content specifies the replacement value. | 10.1 (similarity 0.979) | |
+| A baseline | 10 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to move the value from. | 12.1 (similarity 0.989) | |
+| A baseline | 11 | not located | The 'from' location MUST exist for the operation to be successful. | 13.1, 16.1 (similarity 0.970) | |
+| A baseline | 12 | not located | The 'from' location MUST NOT be a proper prefix of the 'path' location; i.e., a location cannot be moved into one of its children. | 14.1 (similarity 0.969) | |
+| A baseline | 13 | not located | The operation object MUST contain a 'from' member, which is a string containing a JSON Pointer value that references the location in the target document to copy the value from. | 15.1 (similarity 0.989) | |
+| A baseline | 14 | not located | The 'from' location MUST exist for the operation to be successful. | 13.1, 16.1 (similarity 0.970) | |
+| A baseline | 15 | not located | The operation object MUST contain a 'value' member that conveys the value to be compared to the target location's value. | 17.1 (similarity 0.983) | |
+| A baseline | 16 | not located | The target location MUST be equal to the 'value' value for the operation to be considered successful. | 18.1 (similarity 0.980) | |
 
 The pipeline has no unmatched claim, raw or delivered.
 
@@ -196,7 +218,8 @@ The pipeline has no unmatched claim, raw or delivered.
 - **B delivered, 10 of 12.** Both errors are the same one: a `MUST NOT` sentence classed as `MUST`. They are 8.1
   (§4.1, `The specified index MUST NOT be greater than ...`) and 14.1 (§4.4,
   `The "from" location MUST NOT be a proper prefix ...`). RFC 6902 has only these two `MUST NOT` sentences, so
-  the model missed the negation in both.
+  the model missed the negation in both. This is the figure to cite for the pipeline's modality accuracy: the
+  register is what a tester sees, and no pairing tie affects it.
 - **B raw, 14 of 18.** It has the same two errors, plus the §5 pair.
   - Claims 17 (SHOULD) and 18 (MUST_NOT) quote the same whole sentence, and each covers both gold clauses
     fully.
@@ -204,6 +227,9 @@ The pipeline has no unmatched claim, raw or delivered.
     claim 18. Both pairs disagree on modality. Under the other pairing both would agree.
   - Span matching cannot tell which reading goes with which clause, and the metric counts two errors. Without
     this pairing the figure would be 16 of 18. That is context only; the metric stays as computed.
+  - The matching rule also stays as fixed before the analysis, with modality playing no part in pairing. A rule
+    that let modality settle ties, adopted after seeing that it raises the figure, would tune the metric to the
+    result. If modality should settle ties, that is a rule for future runs, decided and recorded first.
   - A test (`TwoReadingsOfOneSentenceArePairedWithItsTwoObligationsBySpanAloneSoTheirModalitiesMayCross`) pins
     this behaviour down.
 - **A0 and A: n/a.** The naive prompt they share asks for no modality, and their answers state none. A modality
@@ -247,13 +273,17 @@ review lands with SPEC-13. There is nothing to analyse here until then.
 1. On RFC 6902 the pipeline's strict verification cost no recall through non-verbatim quotes. Its cost came
    from the rule that a quote found more than once, or read two ways, goes to a person. That rule holds back 6
    of 19 gold requirements (31.6 points of recall), none of them lost.
-2. For the naive baseline, verification is the whole story. It separates 15 gold requirements reached from 3
-   credited, and the cause is one consistent formatting habit, not invention.
+2. For the naive baseline, verification accounts for almost all of the gap between what it reached and what
+   it is credited with: 15 gold requirements reached, 3 credited. The rest were lost to one consistent
+   formatting habit, not to invention.
 3. Chunking is not added. The rule cannot fire, because RFC 6902 has no gold requirement in its last third,
    and the check says nothing about long documents ([chunking-decision.md](chunking-decision.md)).
-4. Findings that could each become a new task. None is started here, and each needs a decision:
-   - the pipeline's extraction reads `MUST NOT` as `MUST` in both of the document's `MUST NOT` sentences;
-   - the pipeline quoted the §4.2/§4.3 shared sentence twice and skipped §4.3's first sentence;
-   - four of the six held-back gold requirements are a quote the model claimed once for each place it occurs.
-     A human decision naming the occurrence could anchor each of them. SPEC-13 logs such answers but, in M2,
-     changes no register with them.
+4. Three findings, recorded for later decision in SpecTrace-docs, `research/spec-12-findings.md`. None is
+   started here. In priority order:
+   - Four of the six held-back gold requirements are a quote the model claimed once for each place it occurs.
+     A logged human decision naming the occurrence could anchor each of them and recover delivered recall
+     through a human action (P6). SPEC-13 logs such answers but, in M2, changes no register with them.
+   - The pipeline's extraction reads `MUST NOT` as `MUST` in both of the document's `MUST NOT` sentences. A fix
+     is a prompt change, so it means new live calls and a new reference run.
+   - The pipeline quoted the shared sentence of §4.2 and §4.3 twice and skipped §4.3's first sentence. This is
+     one observation, recorded as such rather than as a task.

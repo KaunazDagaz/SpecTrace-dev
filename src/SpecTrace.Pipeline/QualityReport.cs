@@ -233,8 +233,10 @@ public static class QualityReport
 
         text.Append($"\n{UnmatchedHeading}\n\n");
         text.Append("Claims that matched no gold requirement at 50%, located or not. The error analysis carries one verdict\n");
-        text.Append("field for each of these rows.\n\n");
-        text.Append("| Arm | Claim | Section | Quote |\n|---|---|---|---|\n");
+        text.Append("field for each of these rows. For a quote that cannot be located, the last column names the gold\n");
+        text.Append("requirement its closest stretch of the document lands on, from the cost of verification below; it is\n");
+        text.Append("never counted as a match.\n\n");
+        text.Append("| Arm | Claim | Section | Quote | Closest gold requirement |\n|---|---|---|---|---|\n");
 
         var unmatched = 0;
 
@@ -243,14 +245,16 @@ public static class QualityReport
             foreach (var index in view.View.Primary.Match.UnmatchedPredictions)
             {
                 var prediction = view.View.Predictions[index];
-                text.Append($"| {view.Label} | {prediction.Label} | {Sections(prediction)} | {Cell(prediction.Quote ?? "(no quote)")} |\n");
+                text.Append(
+                    $"| {view.Label} | {prediction.Label} | {Sections(prediction)} | {Cell(prediction.Quote ?? "(no quote)")} "
+                    + $"| {ClosestFor(view, gold, index)} |\n");
                 unmatched++;
             }
         }
 
         if (unmatched == 0)
         {
-            text.Append("| — | — | — | none |\n");
+            text.Append("| — | — | — | none | — |\n");
         }
 
         text.Append("\n## Gold requirements no claim matched\n\n");
@@ -553,6 +557,30 @@ public static class QualityReport
             view.View.Primary.Match.ForGold(closest) is { } match
                 ? $"no: claim {view.View.Predictions[match.Prediction].Label} matched {GoldReference.Label(gold.Requirements[closest])}"
                 : $"no: {GoldReference.Label(gold.Requirements[closest])} is counted for another quote"));
+    }
+
+    private static string ClosestFor(Scored view, GoldReference gold, int prediction)
+    {
+        var predicted = view.View.Predictions[prediction];
+
+        if (predicted.Prediction.Located)
+        {
+            return "— (located)";
+        }
+
+        if (view.View.Cost.Unlocated.FirstOrDefault(reach => reach.Prediction == prediction) is not { } found)
+        {
+            return "— (no quote)";
+        }
+
+        var similarity = found.Location.Similarity.ToString("0.000", CultureInfo.InvariantCulture);
+        var labels = found.ClosestGold.Count == 0
+            ? "none"
+            : string.Join(", ", found.ClosestGold.Select(closest => GoldReference.Label(gold.Requirements[closest])));
+
+        return found.AtOrAboveThreshold
+            ? $"{labels} (similarity {similarity})"
+            : $"{labels} (similarity {similarity}, below {Threshold()})";
     }
 
     private static HashSet<(int Prediction, int Gold)> Pairs(MatchResult match) =>

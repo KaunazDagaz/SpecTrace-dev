@@ -15,7 +15,7 @@ public sealed class ErrorAnalysisTests
         Assert.NotEmpty(generated);
         Assert.Equal(
             generated.Select(cells => string.Join(" | ", cells)),
-            verdicts.Select(cells => string.Join(" | ", cells.Take(4))));
+            verdicts.Select(cells => string.Join(" | ", cells.Take(5))));
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public sealed class ErrorAnalysisTests
     {
         var verdicts = TableRows(Path.Combine(Experiments, QualityReport.ErrorAnalysisFile), VerdictHeading);
 
-        Assert.All(verdicts, cells => Assert.Equal(5, cells.Count));
+        Assert.All(verdicts, cells => Assert.Equal(6, cells.Count));
     }
 
     private static List<List<string>> TableRows(string path, string heading)
