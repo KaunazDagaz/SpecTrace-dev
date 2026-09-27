@@ -18,6 +18,19 @@ public sealed class ReproductionDocsTests
     }
 
     [Fact]
+    public void TheReadmeGoldCheckCommandIsTheExactCommandCiRuns()
+    {
+        var command = Assert.Single(
+            File.ReadAllLines(Repository.PathTo("README.md")),
+            line => line.StartsWith("dotnet run --project src/SpecTrace.Cli -- score --gold ", StringComparison.Ordinal));
+
+        Assert.Contains(" corpus/gold/", command, StringComparison.Ordinal);
+        Assert.Contains(
+            Workflow,
+            line => line.Trim() == $"run: {command}" || line.Trim() == $"- run: {command}");
+    }
+
+    [Fact]
     public void TheWorkflowReferencesNoSecret()
     {
         Assert.DoesNotContain(
