@@ -162,9 +162,10 @@ Repeat the `- quote:` block once per obligation. The generated fields stay as th
 The check accepts the file only if it names the spectrace-docs commit that froze the rules, every
 sentence the scan finds is decided, every modality and testability holds an allowed value, and
 every quote is found exactly once through the verifier's own resolver, within its section when
-the entry names one. One problem rejects the whole file. The frozen commit is recorded in
-`src/SpecTrace.Pipeline/AnnotationRules.cs` once the rules' pull request merges; until then no
-file loads. CI runs the check command above and fails until the committed gold file loads.
+the entry names one. One problem rejects the whole file. The frozen commit is
+`69ed50ea13564b3da3b17705b3bd39336a082349`, which merged the rules into SpecTrace-docs, and is
+recorded in `src/SpecTrace.Pipeline/AnnotationRules.cs`. CI runs the check command above and
+fails until the committed gold file loads.
 
 ## Layout
 
