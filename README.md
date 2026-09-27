@@ -115,7 +115,7 @@ dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --ar
 dotnet run --project src/SpecTrace.Cli -- score --claims experiments/a0/rfc6902.md --document corpus/rfc6902.txt
 
 # rebuild experiments/headline.md and every metrics file it names; always replays from cache/
-dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt
+dotnet run --project src/SpecTrace.Cli -- score --headline --documents corpus/rfc6902.txt,corpus/rfc10050.txt
 ```
 
 `run --arm baseline` writes `manifest.json`, the answer as `answer.md`, and `claims.json` (every
