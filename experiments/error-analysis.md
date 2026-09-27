@@ -282,8 +282,7 @@ review lands with SPEC-13. There is nothing to analyse here until then.
    formatting habit, not to invention.
 3. Chunking is not added. The rule cannot fire, because RFC 6902 has no gold requirement in its last third,
    and the check says nothing about long documents ([chunking-decision.md](chunking-decision.md)).
-4. Three findings, recorded for later decision in SpecTrace-docs, `research/spec-12-findings.md`. None is
-   started here. In priority order:
+4. Three findings, for later decision. None is started here. In priority order:
    - Four of the six held-back gold requirements are a quote the model claimed once for each place it occurs.
      A logged human decision naming the occurrence could anchor each of them and recover delivered recall
      through a human action (P6). SPEC-13 logs such answers but, in M2, changes no register with them.
