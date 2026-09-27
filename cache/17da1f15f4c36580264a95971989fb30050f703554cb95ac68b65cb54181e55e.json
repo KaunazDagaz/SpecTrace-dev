@@ -1,0 +1,19 @@
+{
+  "key": "17da1f15f4c36580264a95971989fb30050f703554cb95ac68b65cb54181e55e",
+  "createdAt": "2026-09-27T10:59:51.51504+00:00",
+  "request": {
+    "model": "gemini-3.5-flash-lite",
+    "temperature": 0,
+    "maxOutputTokens": 8192,
+    "promptSha256": "0bfceb3f5b722e4bd3ac854184efcfe2dda1abd3aa2b102b490b712bd29fb776",
+    "systemPrompt": "You write black-box test cases for a single requirement.\n\nYou are given one requirement quote and its section number. Nothing else about\nthe specification is available to you, and you must not assume anything that is\nnot stated in the quote.\n\nRules:\n1. Produce between 1 and 3 cases. Fewer good cases beat more weak ones.\n2. Every case must be derivable from the quote alone. Do not invent error codes,\n   field names, limits, formats or behaviours that the quote does not state.\n3. Prefer one positive and one negative case where the quote supports both.\n4. Expected results describe observable behaviour, not implementation detail.\n5. If the quote does not contain enough information to write a single meaningful\n   case, return an empty array and give the reason in \u0022blocked_reason\u0022.\n6. Return valid JSON only. No markdown fences, no commentary.\n\nOutput schema:\n{\n  \u0022cases\u0022: [\n    {\n      \u0022title\u0022: \u0022\u003Cshort imperative sentence\u003E\u0022,\n      \u0022type\u0022: \u0022positive\u0022 | \u0022negative\u0022 | \u0022boundary\u0022,\n      \u0022precondition\u0022: \u0022\u003Cstring\u003E\u0022,\n      \u0022input\u0022: \u0022\u003Cstring\u003E\u0022,\n      \u0022expected_result\u0022: \u0022\u003Cstring\u003E\u0022\n    }\n  ],\n  \u0022blocked_reason\u0022: \u0022\u003Cstring or null\u003E\u0022\n}\n",
+    "userPrompt": "SECTION: 3.4\nREQUIREMENT: A PatchObject MUST NOT patch properties that are not supported in that profile.",
+    "jsonSchema": "{\u0022type\u0022:\u0022OBJECT\u0022,\u0022properties\u0022:{\u0022cases\u0022:{\u0022type\u0022:\u0022ARRAY\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022OBJECT\u0022,\u0022properties\u0022:{\u0022title\u0022:{\u0022type\u0022:\u0022STRING\u0022},\u0022type\u0022:{\u0022type\u0022:\u0022STRING\u0022,\u0022enum\u0022:[\u0022positive\u0022,\u0022negative\u0022,\u0022boundary\u0022]},\u0022precondition\u0022:{\u0022type\u0022:\u0022STRING\u0022},\u0022input\u0022:{\u0022type\u0022:\u0022STRING\u0022},\u0022expected_result\u0022:{\u0022type\u0022:\u0022STRING\u0022}},\u0022required\u0022:[\u0022title\u0022,\u0022type\u0022,\u0022precondition\u0022,\u0022input\u0022,\u0022expected_result\u0022],\u0022propertyOrdering\u0022:[\u0022title\u0022,\u0022type\u0022,\u0022precondition\u0022,\u0022input\u0022,\u0022expected_result\u0022]}},\u0022blocked_reason\u0022:{\u0022type\u0022:\u0022STRING\u0022,\u0022nullable\u0022:true}},\u0022required\u0022:[\u0022cases\u0022],\u0022propertyOrdering\u0022:[\u0022cases\u0022,\u0022blocked_reason\u0022]}"
+  },
+  "response": {
+    "text": "{\n  \u0022cases\u0022: [\n    {\n      \u0022title\u0022: \u0022Patch supported property\u0022,\n      \u0022type\u0022: \u0022positive\u0022,\n      \u0022precondition\u0022: \u0022A profile is active that supports a specific property.\u0022,\n      \u0022input\u0022: \u0022Apply a PatchObject targeting a supported property.\u0022,\n      \u0022expected_result\u0022: \u0022The property is successfully patched.\u0022\n    },\n    {\n      \u0022title\u0022: \u0022Patch unsupported property\u0022,\n      \u0022type\u0022: \u0022negative\u0022,\n      \u0022precondition\u0022: \u0022A profile is active that does not support a specific property.\u0022,\n      \u0022input\u0022: \u0022Apply a PatchObject targeting an unsupported property.\u0022,\n      \u0022expected_result\u0022: \u0022The patch is rejected and the property is not patched.\u0022\n    }\n  ],\n  \u0022blocked_reason\u0022: null\n}",
+    "inputTokens": 302,
+    "outputTokens": 167,
+    "finishReason": "STOP"
+  }
+}
