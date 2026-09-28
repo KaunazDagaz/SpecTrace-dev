@@ -67,9 +67,13 @@ Web:      dotnet run --project src/SpecTrace.Web
 Web offline: dotnet run --project src/SpecTrace.Web -- --offline
 Export:   dotnet run --project src/SpecTrace.Cli -- export --run reference
 Reviews:  dotnet run --project src/SpecTrace.Cli -- score --reviews <log>
+Demo:     dotnet run --project src/SpecTrace.Web -- --offline --public-demo
+Image:    docker build --tag spectrace-web .
+Smoke:    bash deploy/smoke-test.sh <url>
+Deploy:   bash deploy/deploy.sh <deployment project ID> <key project ID> europe-north1
 ```
 
-Everything above works today. `Score` accepts the run ID of any headline row over the document the
+Everything above works today; `Deploy` is the student's alone, as described below. `Score` accepts the run ID of any headline row over the document the
 gold file annotates, replays it offline and adds the quality fields to its metrics file.
 `run --arm baseline` sends the one naive prompt in
 `Prompts/baseline.user.md` and scores the answer with the same verifier. `score --claims` scores
@@ -128,6 +132,19 @@ The review log is the evidence that a person made each decision, and it is appen
 stray decision can never be removed. An agent never makes review decisions on the reference run;
 the student does. No test writes under `runs/reference/`: review tests work on a temporary copy
 of a run, and run tests use a temporary runs directory.
+
+As of SPEC-14, the `Dockerfile` builds the review UI as the public demo Cloud Run serves. It runs
+offline and with `SPECTRACE_PUBLIC_DEMO=1`, both set in the image itself. The demo makes the
+reference run read-only on the server, puts the demo banner on every page, and refuses to start
+without offline mode. The image carries the committed reference review log,
+`experiments/review/{runId}.reviews.jsonl`, at `runs/web/reviews/reference.jsonl`. The `container`
+CI job builds the image, starts it with no key, runs `deploy/smoke-test.sh` against it, and compares
+the RFC 6902 run started through the form with `runs/reference/`. The student runs the same smoke
+test against the live URL. The student deploys with `deploy/deploy.sh` from Cloud Shell. An agent
+never deploys, never runs `gcloud` against the student's projects, and never asks for, receives or
+stores a Google credential, a service-account key or the Gemini key. Never put a key, a build
+argument for one, or a secret in the image or the service configuration. `.gitattributes` keeps
+`*.sh`, `Dockerfile`, `.dockerignore` and `.gcloudignore` LF, because bash fails on CRLF.
 
 `corpus/rfc6902.txt` is in the repository as of SPEC-2. `.gitattributes` marks `corpus/**` as
 `-text` so git performs no end-of-line conversion on it: the file is LF on every platform, and
