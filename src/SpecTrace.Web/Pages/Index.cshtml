@@ -1,0 +1,82 @@
+@page "/"
+@model IndexModel
+@{
+    ViewData["Title"] = "Runs";
+}
+<h1>SpecTrace</h1>
+
+<p>
+Each completed run below can be reviewed: accept, edit or reject every proposed test case, and decide the items a
+person must decide. Every decision is appended to the run's review log and never rewrites the run's files.
+</p>
+
+<section id="new-run">
+<h2>Start a run</h2>
+<div class="notice">
+<p>The pipeline is built for <strong>IETF RFC plain text</strong>, and for <strong>public specifications only</strong>.
+Other formats may lose their section labels, or produce quotes that fail verification; such quotes are dropped and
+listed in <code>rejected-quotes.json</code>, never guessed into place.</p>
+<p>Upload one UTF-8 text file of at most <strong>@DocumentIntake.MaxBytes.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) bytes (64 KiB)</strong>.
+A file identical to a document in the corpus runs as that document. Any other file is kept, byte for byte, under
+<code>@Model.Host.Workspace.UploadsDirectory</code>, which git ignores.</p>
+</div>
+@if (Model.Host.Offline)
+{
+<div class="warning" id="mode">
+<p><strong>This server runs offline.</strong> A run replays model calls from the committed cache and never calls the model,
+so only a document whose calls are in the cache can run: here, the corpus documents
+@string.Join(", ", Model.CorpusDocuments). Any other document ends with a cache-miss message.</p>
+</div>
+}
+else
+{
+<div class="warning" id="mode">
+<p><strong>This server runs live.</strong> A call not in the cache is sent to Gemini's free tier, where inputs may be used to
+improve Google's models. Upload public specifications only. A live run makes one request for extraction and one per
+testable requirement, at most ten a minute, so it can take several minutes.</p>
+@if (!Model.Host.HasApiKey)
+{
+<p><strong>No API key is set</strong> in the server's environment, so only documents already in the cache can run.</p>
+}
+</div>
+}
+@if (Model.Refusal is not null)
+{
+<div class="error" id="refusal"><p>@Model.Refusal</p></div>
+}
+@if (Model.InProgress is { } running)
+{
+<p class="warning">A run is in progress: <a href="/runs/@running.RunId">@running.DocumentId</a>, started @Display.Utc(running.StartedAt). A new run can start when it finishes.</p>
+}
+<form method="post" enctype="multipart/form-data">
+<label for="document">Specification, plain text</label>
+<input type="file" id="document" name="document" accept=".txt,text/plain" required>
+<button type="submit">Start the run</button>
+</form>
+</section>
+
+<h2>Runs</h2>
+<table id="runs">
+<thead><tr><th>Document</th><th>Run</th><th>State</th><th>Started</th><th>Open</th></tr></thead>
+<tbody>
+@foreach (var run in Model.Runs)
+{
+<tr>
+<td>@run.DocumentId</td>
+<td><a href="/runs/@run.Key">@run.RunId</a>@if (run.IsReference){<br><span class="muted">committed reference run</span>}</td>
+<td>@RunCatalog.Describe(run.State)@if (run.Reason is not null){<br><span class="muted">@run.Reason</span>}</td>
+<td>@Display.Utc(run.StartedAt)</td>
+<td>
+@if (run.IsReviewable)
+{
+<a href="/runs/@run.Key/review">review</a> <text>·</text> <a href="/runs/@run.Key/matrix">matrix</a>
+}
+else
+{
+<span class="muted">not offered for review</span>
+}
+</td>
+</tr>
+}
+</tbody>
+</table>

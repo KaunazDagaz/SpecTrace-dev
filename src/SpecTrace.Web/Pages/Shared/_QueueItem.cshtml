@@ -1,0 +1,50 @@
+@model QueueItemView
+@{
+    var queued = Model.Queued;
+    var entry = Model.Item.Entry;
+}
+<div class="item" id="@entry.ItemId">
+<h3>Decision-queue item @entry.ItemId · @queued.Reason</h3>
+@if (Model.Item.Decision is { } decision)
+{
+<p><strong>Decided: @Display.Queue(decision.Decision)</strong> <span class="muted">by @decision.Author (self-declared), @Display.Utc(decision.At)</span></p>
+}
+else
+{
+<p><strong>Not decided yet.</strong></p>
+}
+<p>@queued.Item.Question</p>
+@if (entry.RequirementId is null)
+{
+<p>Quote: <q>@TextNormalizer.Normalize(queued.Item.Quote)</q></p>
+@foreach (var occurrence in Model.Occurrences)
+{
+<pre class="context">@occurrence.Before<mark>@occurrence.Quote</mark>@occurrence.After</pre>
+}
+<ul>
+@foreach (var claim in queued.Claims)
+{
+<li class="muted">claimed as @RunArtifacts.Spell(claim.Modality), @RunArtifacts.Spell(claim.Testability)</li>
+}
+</ul>
+}
+@if (!string.IsNullOrWhiteSpace(Model.ModelNote))
+{
+<p class="muted">The model's note: @Model.ModelNote</p>
+}
+@if (entry.RequirementId is not null)
+{
+<p class="muted">Not testable and defer take @entry.RequirementId out of the gaps. Testable is logged, but no case is generated
+here, so the requirement stays a gap until it has a test case that has not been rejected.</p>
+}
+@if (Model.Reviewer is not null)
+{
+<form method="post" asp-page-handler="Item" asp-route-key="@Model.Key" class="inline">
+<input type="hidden" name="itemId" value="@entry.ItemId">
+<input type="hidden" name="author" value="@Model.Reviewer">
+<button type="submit" name="decision" value="testable">Testable</button>
+<button type="submit" name="decision" value="not_testable">Not testable</button>
+<button type="submit" name="decision" value="defer">Defer</button>
+</form>
+}
+</div>

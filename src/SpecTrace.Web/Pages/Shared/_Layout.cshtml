@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+@if (ViewData["Refresh"] is int seconds)
+{
+<meta http-equiv="refresh" content="@seconds">
+}
+<title>@ViewData["Title"] · SpecTrace</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 0; line-height: 1.45; color: #1d1d1d; background: #fcfcfa; }
+header { background: #23303d; color: #fff; padding: 0.6rem 1.5rem; }
+header a { color: #fff; font-weight: bold; text-decoration: none; }
+main { padding: 1rem 1.5rem 3rem; max-width: 76rem; }
+table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }
+th, td { border: 1px solid #b8b8b8; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; }
+th { background: #eef0f2; }
+.notice { border: 2px solid #333; padding: 0.5rem 0.9rem; margin: 0.8rem 0; background: #fff; }
+.warning { border: 2px solid #b35900; background: #fff3e0; padding: 0.5rem 0.9rem; margin: 0.8rem 0; }
+.error { border: 2px solid #a00000; background: #ffecec; padding: 0.5rem 0.9rem; margin: 0.8rem 0; }
+tr.gap { background: #ffdede; }
+.status-gap { font-weight: bold; color: #a00000; }
+pre.context { white-space: pre-wrap; background: #fff; border: 1px solid #ccc; padding: 0.6rem; font-size: 0.9rem; }
+mark { background: #ffe066; }
+section.requirement { border-top: 3px solid #23303d; margin-top: 2rem; padding-top: 0.5rem; }
+div.case { border: 1px solid #bbb; background: #fff; padding: 0.5rem 0.8rem; margin: 0.7rem 0; }
+div.case.rejected { background: #f3f3f3; color: #666; }
+div.item { border: 2px solid #b35900; background: #fff8ef; padding: 0.5rem 0.8rem; margin: 0.7rem 0; }
+dl.fields { display: grid; grid-template-columns: 10rem 1fr; gap: 0.2rem 0.8rem; margin: 0.4rem 0; }
+dl.fields dt { font-weight: bold; }
+dl.fields dd { margin: 0; white-space: pre-wrap; }
+form.inline { display: inline; }
+button { margin: 0.2rem 0.3rem 0.2rem 0; padding: 0.25rem 0.8rem; }
+label { display: block; margin-top: 0.4rem; font-weight: bold; }
+textarea, input[type=text] { width: 100%; box-sizing: border-box; font: inherit; }
+.muted { color: #666; }
+</style>
+</head>
+<body>
+<header><a href="/">SpecTrace</a> · runs, review and traceability</header>
+<main>
+@RenderBody()
+</main>
+</body>
+</html>

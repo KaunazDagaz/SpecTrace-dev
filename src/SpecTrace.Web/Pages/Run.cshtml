@@ -1,0 +1,92 @@
+@page "/runs/{key}"
+@model RunModel
+@{
+    var listing = Model.Listing;
+    ViewData["Title"] = $"Run {listing.RunId}";
+}
+<h1>Run <code>@listing.RunId</code></h1>
+<p>Document <strong>@listing.DocumentId</strong>@if (listing.IsReference){<text> · the committed reference run in </text><code>runs/reference/</code>}</p>
+
+@if (listing.Record is { } record)
+{
+<p class="muted">
+Started @Display.Utc(record.StartedAt) from the web UI, @(record.Offline ? "offline: replayed from the cache" : "live: calls not in the cache go to the model")@if (record.FinishedAt is { } finished){<text>; finished @Display.Utc(finished)</text>}.
+The document is @(record.Source == DocumentSource.Corpus ? "the corpus file" : "an uploaded copy") with SHA-256 <code>@record.DocumentSha256</code>.
+</p>
+}
+
+@if (listing.State == RunState.Running)
+{
+<div class="warning" id="run-state">
+<p><strong>This run is still in progress.</strong> The page refreshes itself every @RunModel.RefreshSeconds seconds.
+A live run makes one request for extraction and one per testable requirement, at most ten a minute, so it can take several minutes.</p>
+</div>
+}
+else if (!listing.IsReviewable)
+{
+<div class="error" id="run-state">
+<p><strong>This run @RunCatalog.Describe(listing.State).</strong> It is not offered for review.</p>
+@if (listing.Reason is not null)
+{
+<p>@listing.Reason</p>
+}
+</div>
+}
+else if (Model.Error is not null)
+{
+<div class="error" id="run-state"><p>@Model.Error</p></div>
+}
+else if (Model.Run is { } run)
+{
+    var manifest = run.Contents.Manifest;
+    var rows = MatrixExport.RowsOf(run);
+    var cases = run.Reviewed.Cases;
+<p id="run-state"><a href="/runs/@run.Key/review"><strong>Review this run</strong></a> · <a href="/runs/@run.Key/matrix">Reviewed matrix</a></p>
+
+<h2>Manifest</h2>
+<table>
+<tbody>
+<tr><th>Provider and model</th><td>@manifest.Provider, @manifest.Model, temperature @manifest.Temperature</td></tr>
+<tr><th>Model calls</th><td>@manifest.PromptCount, of which @manifest.CacheHits from the cache</td></tr>
+<tr><th>Tokens</th><td>@manifest.InputTokens in, @manifest.OutputTokens out</td></tr>
+<tr><th>Pipeline</th><td>@manifest.PipelineVersion, commit <code>@manifest.GitSha</code></td></tr>
+<tr><th>Started</th><td>@Display.Utc(manifest.StartedAt)</td></tr>
+</tbody>
+</table>
+
+<h2>Quote verification</h2>
+@if (run.Figures is { } figures)
+{
+<p>
+The model returned @figures.Claims quoted claims. @figures.FoundOnce were located exactly once in the source,
+@figures.FoundMoreThanOnce more than once and @figures.NotFound not at all.
+<strong>Quote verification rate: @Display.Percent(figures.VerificationRate)</strong>, the share located exactly once.
+</p>
+}
+else
+{
+<p>The claim-level verification rate is not recorded for this run.</p>
+}
+<ul>
+<li>Requirements in the register, each quote located exactly once: @run.Contents.Register.Count</li>
+<li>Quotes not found in the source, dropped and listed in <code>rejected-quotes.json</code>: @run.Contents.Rejected.Count</li>
+<li>Items in the decision queue: @run.Contents.DecisionQueue.Count</li>
+@foreach (var reason in run.Contents.DecisionQueue.GroupBy(decision => decision.Reason).OrderBy(group => group.Key, StringComparer.Ordinal))
+{
+<li class="muted">@reason.Key: @reason.Count()</li>
+}
+</ul>
+
+<h2>Coverage after review</h2>
+<ul>
+<li>Covered by at least one non-rejected test case: @rows.Count(row => row.Status == CoverageStatus.Covered)</li>
+<li class="status-gap">Gaps: @rows.Count(row => row.Status == CoverageStatus.Gap)</li>
+<li>Not testable or deferred, decided by a person: @rows.Count(row => row.Status is CoverageStatus.NotTestable or CoverageStatus.DeferredByHuman)</li>
+<li>Test cases: @cases.Count; not yet reviewed @cases.Count(reviewed => reviewed.Current.Status == ReviewStatus.Proposed),
+accepted @cases.Count(reviewed => reviewed.Current.Status == ReviewStatus.Accepted),
+edited @cases.Count(reviewed => reviewed.Current.Status == ReviewStatus.Edited),
+rejected @cases.Count(reviewed => reviewed.Current.Status == ReviewStatus.Rejected)</li>
+<li>Decisions in the review log: @run.Log.Count</li>
+</ul>
+<p class="notice">@MatrixHtml.NoCompletenessClaim It shows only whether each requirement in the register has a test case that has not been rejected.</p>
+}
