@@ -1,0 +1,98 @@
+@page "/runs/{key}/matrix"
+@model MatrixModel
+@{
+    ViewData["Title"] = "Matrix";
+}
+@if (Model.Unavailable is not null)
+{
+<h1>Reviewed matrix</h1>
+<div class="error" id="unavailable"><p>@Model.Unavailable</p></div>
+<p><a href="/">Back to the runs</a></p>
+    return;
+}
+@{
+    var run = Model.Run;
+    var rows = Model.Rows;
+    ViewData["Title"] = $"Matrix {run.DocumentId}";
+}
+<h1>Reviewed traceability matrix: @run.DocumentId</h1>
+<p>Run <a href="/runs/@run.Key"><code>@run.RunId</code></a> · <a href="/runs/@run.Key/review">review</a> ·
+export as <a href="/runs/@run.Key/matrix.md">Markdown</a> or <a href="/runs/@run.Key/matrix.csv">CSV</a></p>
+
+<div class="notice">
+<p><strong>@MatrixHtml.NoCompletenessClaim</strong> It shows only whether each requirement in the register has a test
+case that has not been rejected. A case nobody has reviewed yet still counts. A requirement the extraction did not
+find is not in the register and cannot appear here.</p>
+<p>This view is computed on every request from the run's files and its review log (@run.Log.Count decisions).
+The run's own <code>matrix.json</code> and <code>matrix.html</code> stay as the pipeline wrote them, before any review.</p>
+</div>
+
+<ul>
+<li>Requirements in the register: @rows.Count</li>
+<li>Covered by at least one non-rejected test case: @rows.Count(row => row.Status == CoverageStatus.Covered)</li>
+<li class="status-gap">Gaps: @rows.Count(row => row.Status == CoverageStatus.Gap)</li>
+<li>Not testable, decided by a person: @rows.Count(row => row.Status == CoverageStatus.NotTestable)</li>
+<li>Deferred by a person: @rows.Count(row => row.Status == CoverageStatus.DeferredByHuman)</li>
+</ul>
+
+<table id="matrix">
+<thead><tr><th>Requirement</th><th>Section</th><th>Modality</th><th>Quote</th><th>Test cases</th><th>Rejected</th><th>Status</th></tr></thead>
+<tbody>
+@foreach (var row in rows)
+{
+<tr class="@(row.Status == CoverageStatus.Gap ? "gap" : "")" data-requirement="@row.Requirement.Id" data-status="@RunArtifacts.Spell(row.Status)">
+<td><a href="/runs/@run.Key/review#@row.Requirement.Id">@row.Requirement.Id</a></td>
+<td>@row.Requirement.Section</td>
+<td>@Display.Spell(row.Requirement.Modality)</td>
+<td>@TextNormalizer.Normalize(row.Requirement.Text)</td>
+<td>
+@if (row.Covering.Count == 0)
+{
+<text>none</text>
+}
+@foreach (var reviewed in row.Covering)
+{
+<div>@reviewed.Original.Id (@Display.Spell(reviewed.Current.Type), @Display.Review(reviewed.Current.Status))</div>
+}
+</td>
+<td>
+@foreach (var reviewed in row.Rejected)
+{
+<div>@reviewed.Original.Id</div>
+}
+</td>
+<td class="@(row.Status == CoverageStatus.Gap ? "status-gap" : "")">@Display.Status(row.Status)@foreach (var item in row.Items){<br><span class="muted">see @item.Entry.ItemId@(item.Decision is { } decided ? $": {Display.Queue(decided.Decision)}" : ": not decided")</span>}</td>
+</tr>
+}
+</tbody>
+</table>
+
+<h2 id="orphans">Orphan test cases: @run.Reviewed.Matrix.Orphans.Count</h2>
+@if (run.Reviewed.Matrix.Orphans.Count == 0)
+{
+<p>None. Every test case names only requirements that are in the register.</p>
+}
+else
+{
+<ul>
+@foreach (var orphan in run.Reviewed.Matrix.Orphans)
+{
+<li>@orphan.TestCaseId names @string.Join(", ", orphan.MissingRequirementIds), not in the register</li>
+}
+</ul>
+}
+
+<h2 id="orphan-decisions">Orphan decisions: @run.Reviewed.OrphanDecisions.Count</h2>
+@if (run.Reviewed.OrphanDecisions.Count == 0)
+{
+<p>None. Every line of the review log names a case or item in this run.</p>
+}
+else
+{
+<ul>
+@foreach (var orphan in run.Reviewed.OrphanDecisions)
+{
+<li>log line @orphan.Line, @orphan.Decision.TargetId: @orphan.Reason</li>
+}
+</ul>
+}

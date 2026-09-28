@@ -277,7 +277,7 @@ public static class MatrixHtml
                 .Where(note => !string.IsNullOrWhiteSpace(note))
                 .Distinct(StringComparer.Ordinal));
 
-    private static string StatusLabel(CoverageStatus status) => status switch
+    public static string StatusLabel(CoverageStatus status) => status switch
     {
         CoverageStatus.Covered => "covered",
         CoverageStatus.Gap => "GAP",

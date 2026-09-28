@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>SpecTrace.Web</RootNamespace>
+    <RunWorkingDirectory>$(MSBuildStartupDirectory)</RunWorkingDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpecTrace.Pipeline\SpecTrace.Pipeline.csproj" />
+  </ItemGroup>
+
+</Project>

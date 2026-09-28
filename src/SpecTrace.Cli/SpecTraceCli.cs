@@ -31,6 +31,8 @@ public static class SpecTraceCli
 
     private static readonly TimeSpan BaselineCallTimeout = TimeSpan.FromMinutes(20);
 
+    private static readonly System.Text.UTF8Encoding Utf8WithoutMark = new(encoderShouldEmitUTF8Identifier: false);
+
     public static async Task<int> RunAsync(string[] args, CliHost host, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -57,6 +59,9 @@ public static class SpecTraceCli
 
             case "score":
                 return await ScoreAsync(args[1..], host, cancellationToken).ConfigureAwait(false);
+
+            case "export":
+                return await ExportAsync(args[1..], host, cancellationToken).ConfigureAwait(false);
 
             default:
                 host.Error.WriteLine($"'{args[0]}' is not implemented yet.");
@@ -126,6 +131,11 @@ public static class SpecTraceCli
             return await WorksheetAsync(worksheet, values, host, cancellationToken).ConfigureAwait(false);
         }
 
+        if (values.TryGetValue("--reviews", out var reviews))
+        {
+            return await ReviewsAsync(reviews, values, host, cancellationToken).ConfigureAwait(false);
+        }
+
         if (values.TryGetValue(GoldOption, out var gold) && !values.ContainsKey("--run") && !values.ContainsKey("--claims") && !flags.Contains(HeadlineFlag))
         {
             return await GoldAsync(gold, values, host, cancellationToken).ConfigureAwait(false);
@@ -172,6 +182,125 @@ public static class SpecTraceCli
             "score needs --claims <file> --document <path>, --headline --documents <path,path>, or --run <id> --gold <path>.");
         WriteUsage(host.Error);
         return ExitUsage;
+    }
+
+    private static async Task<int> ExportAsync(string[] args, CliHost host, CancellationToken cancellationToken)
+    {
+        if (!TryParse(args, host.Error, out var values, out _))
+        {
+            return ExitUsage;
+        }
+
+        if (!values.TryGetValue("--run", out var key))
+        {
+            host.Error.WriteLine("export needs --run <key>: reference, or the ID of a run started from the web UI.");
+            return ExitUsage;
+        }
+
+        string[] formats = values.TryGetValue("--format", out var format)
+            ? [format]
+            : [MatrixExport.MarkdownFormat, MatrixExport.CsvFormat];
+
+        if (formats.Any(candidate => candidate is not (MatrixExport.MarkdownFormat or MatrixExport.CsvFormat)))
+        {
+            host.Error.WriteLine($"--format takes {MatrixExport.MarkdownFormat} or {MatrixExport.CsvFormat}.");
+            return ExitUsage;
+        }
+
+        var workspace = Workspace.Default with
+        {
+            Corpus = values.GetValueOrDefault("--corpus", Workspace.Default.Corpus),
+            Runs = values.GetValueOrDefault("--runs", Workspace.Default.Runs),
+            Reference = values.GetValueOrDefault("--reference", Workspace.Default.Reference),
+        };
+
+        if (!Workspace.IsRunKey(key))
+        {
+            host.Error.WriteLine($"'{key}' is not a run key: use reference, or a run ID such as rfc6902-3ff2234db6aa.");
+            return ExitUsage;
+        }
+
+        LoadedRun run;
+
+        try
+        {
+            run = await new RunCatalog(workspace, TimeProvider.System)
+                .LoadAsync(key, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (RunNotAvailableException exception)
+        {
+            host.Error.WriteLine(exception.Message);
+            host.Error.WriteLine("Nothing was exported.");
+            return ExitFailure;
+        }
+
+        var directory = values.GetValueOrDefault("--out", Path.Combine(workspace.WebRoot, "exports"));
+
+        Directory.CreateDirectory(directory);
+
+        host.Out.WriteLine($"run            {run.RunId} ({key})");
+        host.Out.WriteLine($"review log     {run.Log.Count} decisions from {run.LogPath}");
+
+        foreach (var chosen in formats)
+        {
+            var path = Path.Combine(directory, $"{key}.matrix.{(chosen == MatrixExport.MarkdownFormat ? "md" : "csv")}");
+
+            await File.WriteAllTextAsync(path, MatrixExport.Render(run, chosen), Utf8WithoutMark, cancellationToken)
+                .ConfigureAwait(false);
+
+            host.Out.WriteLine($"written to     {path}");
+        }
+
+        host.Out.WriteLine();
+        host.Out.WriteLine(
+            "The reviewed matrix is computed from the run's files and its review log; neither was changed. "
+            + MatrixHtml.NoCompletenessClaim);
+
+        return ExitSuccess;
+    }
+
+    private static async Task<int> ReviewsAsync(
+        string log,
+        Dictionary<string, string> values,
+        CliHost host,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<LoggedDecision> decisions;
+        byte[] bytes;
+
+        try
+        {
+            bytes = await File.ReadAllBytesAsync(log, cancellationToken).ConfigureAwait(false);
+            decisions = ReviewLog.Parse(log, bytes);
+        }
+        catch (Exception exception) when (exception is InvalidReviewLogException
+            or FileNotFoundException
+            or DirectoryNotFoundException)
+        {
+            host.Error.WriteLine(exception.Message);
+            host.Error.WriteLine("Nothing was summarised.");
+            return ExitFailure;
+        }
+
+        var outcomes = ReviewOutcomes.Of(decisions);
+        var summary = ReviewSummary.Render(Path.GetFileName(log), bytes, outcomes);
+
+        host.Out.Write(summary);
+
+        if (values.TryGetValue("--out", out var directory))
+        {
+            var name = outcomes.RunIds is [var runId] ? runId : Path.GetFileNameWithoutExtension(log);
+            var path = Path.Combine(directory, $"{name}.review-outcomes.md");
+
+            Directory.CreateDirectory(directory);
+            await File.WriteAllTextAsync(path, summary, Utf8WithoutMark, cancellationToken).ConfigureAwait(false);
+
+            host.Out.WriteLine();
+            host.Out.WriteLine($"written to     {path}");
+        }
+
+        return ExitSuccess;
     }
 
     private static async Task<int> WorksheetAsync(
@@ -757,9 +886,11 @@ public static class SpecTraceCli
         output.WriteLine("          write an annotation worksheet: every sentence with an uppercase BCP 14 keyword");
         output.WriteLine("  score   --gold <file> --document <path>");
         output.WriteLine("          check a gold file: every quote found exactly once, every value allowed, rules frozen");
+        output.WriteLine("  score   --reviews <log> [--out <dir>]");
+        output.WriteLine("          summarise a review log: cases accepted, edited and rejected, by each case's latest decision");
         output.WriteLine();
-        output.WriteLine("Not implemented yet — lands with its own task:");
-        output.WriteLine("  export  --run <id>                export the matrix");
+        output.WriteLine("  export  --run <key> [--format markdown|csv] [--runs <dir>] [--reference <dir>] [--corpus <dir>] [--out <dir>]");
+        output.WriteLine("          export the reviewed matrix, computed from the run's files and its review log");
         output.WriteLine();
         output.WriteLine("Options:");
         output.WriteLine($"  {OfflineFlag}          replay from cache only; a miss is an error. Same as {CachingLlmClient.OfflineVariable}=1");

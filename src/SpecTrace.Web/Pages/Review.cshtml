@@ -1,0 +1,173 @@
+@page "/runs/{key}/review"
+@model ReviewModel
+@{
+    ViewData["Title"] = "Review";
+}
+@if (Model.Unavailable is not null)
+{
+<h1>Review</h1>
+<div class="error" id="unavailable"><p>@Model.Unavailable</p></div>
+<p><a href="/">Back to the runs</a></p>
+    return;
+}
+@{
+    var run = Model.Run;
+    var cases = run.Reviewed.Cases;
+    var items = run.Reviewed.Items;
+    ViewData["Title"] = $"Review {run.DocumentId}";
+}
+<h1>Review: @run.DocumentId</h1>
+<p>Run <a href="/runs/@run.Key"><code>@run.RunId</code></a> · <a href="/runs/@run.Key/matrix">reviewed matrix</a></p>
+
+<div class="notice">
+<p>Every decision is appended as one line to <code>@run.LogPath</code>. Earlier lines are never changed:
+to change your mind, decide again, and the latest decision counts. Nothing in the run's folder is written,
+and no decision on this page calls the model.</p>
+<p>@MatrixHtml.NoCompletenessClaim A requirement the extraction did not find is not in the register and cannot appear here.</p>
+</div>
+
+@if (Model.Error is not null)
+{
+<div class="error" id="error"><p>@Model.Error</p></div>
+}
+
+<div class="warning" id="reviewer">
+@if (Model.Reviewer is not null)
+{
+<p>Deciding as <strong>@Model.Reviewer</strong>. The name is self-declared: nobody checks it. It is written to the log with every decision, marked as self-declared.</p>
+}
+else
+{
+<p><strong>Enter your name to decide.</strong> It is self-declared, since this UI has no accounts: nobody checks it. It is written to the log with every decision.</p>
+}
+<form method="post" asp-page-handler="Reviewer" asp-route-key="@run.Key">
+<label for="reviewer-name">Your name</label>
+<input type="text" id="reviewer-name" name="name" maxlength="@LoggedDecision.MaxAuthorLength" value="@Model.Reviewer">
+<button type="submit">Use this name</button>
+</form>
+</div>
+
+<p id="progress">
+Test cases decided: @cases.Count(reviewed => reviewed.Decision is not null) of @cases.Count.
+Decision-queue items decided: @items.Count(item => item.Decision is not null) of @items.Count.
+Lines in the review log: @run.Log.Count.
+</p>
+
+@foreach (var row in run.Reviewed.Matrix.Rows)
+{
+    var requirement = run.Contents.Register.Single(candidate => candidate.Id == row.RequirementId);
+    var context = Model.ContextFor(requirement);
+    var requirementCases = Model.CasesFor(requirement.Id);
+<section class="requirement" id="@requirement.Id">
+<h2>@requirement.Id · section @requirement.Section · @Display.Spell(requirement.Modality)</h2>
+<p>Status in the reviewed matrix: <strong class="@(row.Status == CoverageStatus.Gap ? "status-gap" : "")">@Display.Status(row.Status)</strong>.
+The model classified it <em>@RunArtifacts.Spell(requirement.Testability)</em>@if (requirement.TestabilityNote is not null){<text>: </text>@requirement.TestabilityNote}.</p>
+<pre class="context">@context.Before<mark>@context.Quote</mark>@context.After</pre>
+
+@if (requirementCases.Count == 0)
+{
+<p class="muted">No test case was generated for this requirement.</p>
+}
+@foreach (var reviewed in requirementCases)
+{
+    var current = reviewed.Current;
+    var original = reviewed.Original;
+<div class="case @(current.Status == ReviewStatus.Rejected ? "rejected" : "")" id="@original.Id">
+<h3>@original.Id · @Display.Spell(current.Type) · @Display.Review(current.Status)</h3>
+@if (reviewed.Decision is { } decision)
+{
+<p class="muted">@ReviewLog.Spell(decision.Decision) by @decision.Author (self-declared), @Display.Utc(decision.At)</p>
+}
+<dl class="fields">
+<dt>Title</dt><dd>@current.Title</dd>
+<dt>Precondition</dt><dd>@current.Precondition</dd>
+<dt>Input</dt><dd>@current.Input</dd>
+<dt>Expected result</dt><dd>@current.ExpectedResult</dd>
+</dl>
+@if (current.Status == ReviewStatus.Edited)
+{
+<details>
+<summary>The original, as proposed, unchanged in <code>test-cases.json</code></summary>
+<dl class="fields">
+<dt>Title</dt><dd>@original.Title</dd>
+<dt>Type</dt><dd>@Display.Spell(original.Type)</dd>
+<dt>Precondition</dt><dd>@original.Precondition</dd>
+<dt>Input</dt><dd>@original.Input</dd>
+<dt>Expected result</dt><dd>@original.ExpectedResult</dd>
+</dl>
+</details>
+}
+@if (Model.Reviewer is not null)
+{
+<form method="post" asp-page-handler="Case" asp-route-key="@run.Key" class="inline">
+<input type="hidden" name="caseId" value="@original.Id">
+<input type="hidden" name="author" value="@Model.Reviewer">
+<button type="submit" name="decision" value="accept">Accept as proposed</button>
+<button type="submit" name="decision" value="reject">Reject</button>
+</form>
+<details>
+<summary>Edit</summary>
+<form method="post" asp-page-handler="Case" asp-route-key="@run.Key">
+<input type="hidden" name="caseId" value="@original.Id">
+<input type="hidden" name="author" value="@Model.Reviewer">
+<input type="hidden" name="decision" value="edit">
+<label for="title-@original.Id">Title</label>
+<input type="text" id="title-@original.Id" name="title" value="@current.Title" required>
+<label for="type-@original.Id">Type</label>
+<select id="type-@original.Id" name="type">
+@foreach (var type in Enum.GetValues<CaseType>())
+{
+<option value="@Display.Spell(type)" selected="@(type == current.Type)">@Display.Spell(type)</option>
+}
+</select>
+<label for="precondition-@original.Id">Precondition</label>
+<textarea id="precondition-@original.Id" name="precondition" rows="2">@current.Precondition</textarea>
+<label for="input-@original.Id">Input</label>
+<textarea id="input-@original.Id" name="input" rows="3">@current.Input</textarea>
+<label for="expected-@original.Id">Expected result</label>
+<textarea id="expected-@original.Id" name="expectedResult" rows="3" required>@current.ExpectedResult</textarea>
+<button type="submit">Save the edit as a new decision</button>
+</form>
+</details>
+}
+</div>
+}
+
+@foreach (var item in items.Where(candidate => candidate.Entry.RequirementId == requirement.Id))
+{
+<partial name="_QueueItem" model="new QueueItemView(run.Key, Model.Reviewer, item, Model.QueuedFor(item), [])" />
+}
+</section>
+}
+
+@{
+    var unattached = items.Where(item => item.Entry.RequirementId is null).ToList();
+}
+<section class="requirement" id="unattached-items">
+<h2>Quotes the system could not settle alone: @unattached.Count</h2>
+<p>These quotes are not in the register: they were found more than once, or claimed with conflicting readings.
+A decision on them is logged and changes no requirement and no matrix row in this version.</p>
+@foreach (var item in unattached)
+{
+    var queued = Model.QueuedFor(item);
+<partial name="_QueueItem" model="new QueueItemView(run.Key, Model.Reviewer, item, queued, Model.ContextsFor(queued.Item.Quote))" />
+}
+</section>
+
+<section class="requirement" id="orphan-decisions">
+<h2>Orphan decisions: @run.Reviewed.OrphanDecisions.Count</h2>
+@if (run.Reviewed.OrphanDecisions.Count == 0)
+{
+<p>None. Every line of the log names a case or item in this run.</p>
+}
+else
+{
+<p>Lines of the log whose case or item is not in this run. They are listed rather than dropped, and they change nothing.</p>
+<ul>
+@foreach (var orphan in run.Reviewed.OrphanDecisions)
+{
+<li>line @orphan.Line, @orphan.Decision.TargetId: @orphan.Reason</li>
+}
+</ul>
+}
+</section>

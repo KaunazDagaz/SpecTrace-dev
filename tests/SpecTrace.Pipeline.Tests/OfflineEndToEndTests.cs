@@ -10,10 +10,6 @@ namespace SpecTrace.Pipeline.Tests;
 
 public sealed class OfflineEndToEndTests : IClassFixture<OfflineEndToEndRuns>
 {
-    public static readonly string[] ManifestFieldsThatVaryBetweenRuns = ["started_at", "git_sha"];
-
-    private const string Masked = "<varies between runs>";
-
     private static readonly string ReferenceDirectory = Repository.PathTo("runs", "reference");
 
     private readonly OfflineEndToEndRuns _runs;
@@ -54,32 +50,9 @@ public sealed class OfflineEndToEndTests : IClassFixture<OfflineEndToEndRuns>
             Directory.Exists(ReferenceDirectory),
             $"'{ReferenceDirectory}' does not exist. Regenerate it with the command in README.md, section Reproduce.");
 
-        var referenceFiles = FileNamesIn(ReferenceDirectory);
-
-        Assert.Contains(RunArtifacts.ManifestFile, referenceFiles);
-        Assert.Contains(RunArtifacts.MatrixHtmlFile, referenceFiles);
-
         foreach (var run in new[] { _runs.WithVariable, _runs.WithFlag })
         {
-            Assert.Equal(referenceFiles, FileNamesIn(run.OutputDirectory));
-
-            foreach (var file in referenceFiles)
-            {
-                var expected = File.ReadAllBytes(Path.Combine(ReferenceDirectory, file));
-                var actual = File.ReadAllBytes(Path.Combine(run.OutputDirectory, file));
-
-                if (file == RunArtifacts.ManifestFile)
-                {
-                    Assert.Equal(MaskVaryingFields(expected), MaskVaryingFields(actual));
-                    continue;
-                }
-
-                if (!expected.AsSpan().SequenceEqual(actual))
-                {
-                    Assert.Equal(Encoding.UTF8.GetString(expected), Encoding.UTF8.GetString(actual));
-                    Assert.Fail($"{file} differs from runs/reference/{file} in bytes that decode to the same text.");
-                }
-            }
+            RunComparison.AssertSameArtifacts(ReferenceDirectory, run.OutputDirectory);
         }
     }
 
@@ -89,7 +62,7 @@ public sealed class OfflineEndToEndTests : IClassFixture<OfflineEndToEndRuns>
         foreach (var directory in new[] { ReferenceDirectory, _runs.WithVariable.OutputDirectory, _runs.WithFlag.OutputDirectory })
         {
             var manifest = File.ReadAllBytes(Path.Combine(directory, RunArtifacts.ManifestFile));
-            var values = VaryingValues(manifest);
+            var values = RunComparison.VaryingValues(manifest);
 
             Assert.True(
                 DateTimeOffset.TryParse(values["started_at"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var startedAt)
@@ -186,43 +159,6 @@ public sealed class OfflineEndToEndTests : IClassFixture<OfflineEndToEndRuns>
         Assert.True(root.GetProperty("prompt_count").GetInt32() > 0);
         Assert.Equal(root.GetProperty("prompt_count").GetInt32(), root.GetProperty("cache_hits").GetInt32());
     }
-
-    private static List<string> FileNamesIn(string directory) =>
-        Directory.EnumerateFileSystemEntries(directory)
-            .Select(entry => Path.GetFileName(entry))
-            .Order(StringComparer.Ordinal)
-            .ToList();
-
-    private static string MaskVaryingFields(byte[] manifest)
-    {
-        var text = Encoding.UTF8.GetString(manifest);
-
-        foreach (var field in ManifestFieldsThatVaryBetweenRuns)
-        {
-            text = FieldPattern(field).Replace(text, $"\"{field}\": \"{Masked}\"");
-        }
-
-        return text;
-    }
-
-    private static Dictionary<string, string> VaryingValues(byte[] manifest)
-    {
-        var text = Encoding.UTF8.GetString(manifest);
-        var values = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var field in ManifestFieldsThatVaryBetweenRuns)
-        {
-            var matches = FieldPattern(field).Matches(text);
-
-            Assert.True(matches.Count == 1, $"'{field}' occurs {matches.Count} times in manifest.json; expected exactly once.");
-            values[field] = matches[0].Groups["value"].Value;
-        }
-
-        return values;
-    }
-
-    private static Regex FieldPattern(string field) =>
-        new($"\"{Regex.Escape(field)}\": \"(?<value>[^\"]*)\"", RegexOptions.CultureInvariant);
 }
 
 public sealed class OfflineEndToEndRuns : IAsyncLifetime

@@ -1,0 +1,36 @@
+@page "/"
+@model IndexModel
+@{
+    ViewData["Title"] = "Runs";
+}
+<h1>Runs</h1>
+
+<p>
+Each run below can be reviewed: accept, edit or reject every proposed test case, and decide the items a
+person must decide. Every decision is appended to the run's review log and never rewrites the run's files.
+</p>
+
+<table id="runs">
+<thead><tr><th>Document</th><th>Run</th><th>State</th><th>Started</th><th>Open</th></tr></thead>
+<tbody>
+@foreach (var run in Model.Runs)
+{
+<tr>
+<td>@run.DocumentId</td>
+<td><a href="/runs/@run.Key">@run.RunId</a>@if (run.IsReference){<br><span class="muted">committed reference run</span>}</td>
+<td>@RunCatalog.Describe(run.State)@if (run.Reason is not null){<br><span class="muted">@run.Reason</span>}</td>
+<td>@Display.Utc(run.StartedAt)</td>
+<td>
+@if (run.IsReviewable)
+{
+<a href="/runs/@run.Key/review">review</a> <text>·</text> <a href="/runs/@run.Key/matrix">matrix</a>
+}
+else
+{
+<span class="muted">not offered for review</span>
+}
+</td>
+</tr>
+}
+</tbody>
+</table>
