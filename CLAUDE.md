@@ -63,6 +63,10 @@ Headline: dotnet run --project src/SpecTrace.Cli -- score --headline --documents
 Worksheet: dotnet run --project src/SpecTrace.Cli -- score --worksheet corpus/worksheets/rfc6902.worksheet.yaml --document corpus/rfc6902.txt
 Gold:     dotnet run --project src/SpecTrace.Cli -- score --gold corpus/gold/rfc6902.gold.yaml --document corpus/rfc6902.txt
 Score:    dotnet run --project src/SpecTrace.Cli -- score --run <id> --gold corpus/gold/rfc6902.gold.yaml
+Web:      dotnet run --project src/SpecTrace.Web
+Web offline: dotnet run --project src/SpecTrace.Web -- --offline
+Export:   dotnet run --project src/SpecTrace.Cli -- export --run reference
+Reviews:  dotnet run --project src/SpecTrace.Cli -- score --reviews <log>
 ```
 
 Everything above works today. `Score` accepts the run ID of any headline row over the document the
@@ -106,6 +110,24 @@ A live call needs `GEMINI_API_KEY` in the environment — the Windows user envir
 shell, never a file in this repository, `.env` included. `tests/SpecTrace.Llm.Tests` holds one
 live check that skips itself when the key is absent, so CI stays keyless. When the key is
 present, every `dotnet test` spends one real request from the daily quota on that check.
+
+As of SPEC-13, `src/SpecTrace.Web` serves the review UI at http://localhost:5000: a run list with
+a new-run form, a run overview that also shows a run in progress, review, and the reviewed
+matrix. Start it from the repository root. A review decision is one JSON line appended to
+`runs/web/reviews/{runKey}.jsonl`, where the run key is `reference` or a run ID; earlier lines
+are never changed, and the latest decision per case or item wins. The reviewed matrix is computed
+on each request from the run's files plus that log, so a decision never rewrites any file the
+pipeline produced. The log is not kept in `runs/{runId}/` because the offline end-to-end test
+compares the file list of `runs/reference/`. An upload identical to a `corpus/*.txt` file runs as
+that corpus document; any other upload is copied to `runs/web/uploads/`, and its cache entries go
+to `runs/web/cache/`, both ignored by git. `export --run <key>` writes the reviewed matrix as
+Markdown and CSV through the renderer the matrix page uses; `score --reviews <log>` counts cases
+accepted, edited and rejected by their latest decision.
+
+The review log is the evidence that a person made each decision, and it is append-only, so a
+stray decision can never be removed. An agent never makes review decisions on the reference run;
+the student does. No test writes under `runs/reference/`: review tests work on a temporary copy
+of a run, and run tests use a temporary runs directory.
 
 `corpus/rfc6902.txt` is in the repository as of SPEC-2. `.gitattributes` marks `corpus/**` as
 `-text` so git performs no end-of-line conversion on it: the file is LF on every platform, and

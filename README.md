@@ -41,10 +41,14 @@ Milestone M1 (vertical slice) is accepted and M2 is in progress. What exists tod
   loads a gold file only if every quote in it is found in the document exactly once;
 - scoring every arm against the gold standard: precision, recall, F1 and modality accuracy by
   span-overlap matching, the same matching at 30% and 70%, recall by third of the document with the
-  chunking decision, and the cost of verification. CI recomputes all of it offline with the headline.
+  chunking decision, and the cost of verification. CI recomputes all of it offline with the headline;
+- the review UI in `src/SpecTrace.Web`: accept, edit or reject every proposed test case, decide the
+  items a person must decide, and see the matrix those decisions give, exported as Markdown or CSV.
+  Every decision is appended to an append-only log and no pipeline file is ever rewritten. The same
+  UI can start a run from an uploaded plain-text specification.
 
-Not implemented yet, with its own task in this milestone: the review UI. The gold standard itself is
-annotated by hand.
+Not implemented yet, with its own task in this milestone: deployment of the review UI. The gold
+standard itself is annotated by hand.
 
 ## Prerequisites
 
@@ -141,6 +145,16 @@ command does the same for every arm on that document and also writes `experiment
 through a quote located in the source; a claim that cannot be located is a false positive.
 `experiments/error-analysis.md` is written by hand from those files and is never generated.
 
+Review, outside the browser:
+
+```
+# the reviewed matrix of a run, as Markdown and CSV, under runs/web/exports/
+dotnet run --project src/SpecTrace.Cli -- export --run reference
+
+# how many cases a review log accepted, edited and rejected; --out <dir> also writes the summary there
+dotnet run --project src/SpecTrace.Cli -- score --reviews runs/web/reviews/reference.jsonl
+```
+
 ## Gold standard
 
 The gold standard for RFC 6902 is annotated by hand, under rules frozen before annotation starts:
@@ -175,6 +189,99 @@ the entry names one. One problem rejects the whole file. The frozen commit is
 recorded in `src/SpecTrace.Pipeline/AnnotationRules.cs`. CI runs the check command above and
 fails until the committed gold file loads.
 
+## Review UI
+
+Start it from the repository root and open http://localhost:5000:
+
+```
+# live: a model call not in the cache goes to Gemini, which needs GEMINI_API_KEY in the environment
+dotnet run --project src/SpecTrace.Web
+
+# offline: every run replays from cache/, no key is read and nothing is sent to the model
+dotnet run --project src/SpecTrace.Web -- --offline
+```
+
+`SPECTRACE_OFFLINE=1` works the same way as `--offline`. `--urls http://localhost:5080` changes the
+address, and `--runs <dir>` moves everything the UI writes to another directory.
+
+Pages, all server-rendered, with no JavaScript and no accounts:
+
+- **Runs** (`/`): the committed reference run and every run started from the UI, with its state,
+  and the form that starts a run.
+- **Run overview** (`/runs/{key}`): the manifest, the quote verification figures and coverage after
+  review. A run in progress refreshes itself every five seconds; a run that failed, was cancelled or
+  was interrupted by a restart shows its reason and is never offered for review.
+- **Review** (`/runs/{key}/review`): each requirement's quote highlighted in its surrounding source
+  text, its test cases with accept, edit and reject, and the decision-queue items with testable, not
+  testable and defer. A reviewer first enters a name; it is self-declared, nobody checks it, and every
+  log line records it as such.
+- **Reviewed matrix** (`/runs/{key}/matrix`): the matrix after review, gaps highlighted, orphan cases
+  and orphan decisions listed, with Markdown and CSV downloads.
+
+What a decision does:
+
+- Accept, edit and reject apply to one test case; the latest decision counts. An edit is logged as a
+  new decision carrying the new text and the ID of the original, which stays unchanged in
+  `test-cases.json`.
+- Not testable and defer, on an item whose requirement is in the register, take that requirement out
+  of the gaps. Testable is logged, but no case is generated from the review page, so the requirement
+  stays a gap until it has a test case that has not been rejected (invariant I4).
+- A decision on a quote found more than once, or claimed with conflicting readings, is logged and
+  changes no register.
+- No decision rewrites a file the pipeline produced. The reviewed matrix is computed on every request
+  from the run's files plus the log; `matrix.json` and `matrix.html` in the run folder stay the
+  pipeline's snapshot before review.
+
+Where the UI writes, all under `runs/`, which git ignores except `runs/reference/`:
+
+| Path | What |
+|---|---|
+| `runs/web/reviews/{runKey}.jsonl` | The review log of a run: one JSON line per decision, never rewritten. The run key is `reference` or a run ID |
+| `runs/{runId}/` | A run started from the UI, with the same seven files `spectrace run` writes |
+| `runs/web/status/{runId}.json` | The state of a run started from the UI, and its reason when it did not finish |
+| `runs/web/uploads/{sha256 prefix}/{name}.txt` | An uploaded document that is not in the corpus, byte for byte as received |
+| `runs/web/cache/` | The cache entries of those uploads |
+| `runs/web/exports/` | What `export` writes |
+
+Starting a run:
+
+- The upload is one UTF-8 plain-text file of at most 64 KiB. The pipeline is built for IETF RFC plain
+  text and public specifications only; another format may lose its section labels or produce quotes
+  that fail verification, which are dropped and listed, never guessed into place.
+- A file byte-identical to a `corpus/*.txt` file runs as that corpus document, whatever the upload is
+  called: the same document name, requirement IDs and committed cache. Any other file is named by a
+  slug of its file name, and nothing it produces can reach `cache/`, `corpus/` or `runs/reference/`.
+- Offline, only a document whose calls are in the committed cache can run; any other ends with a
+  cache-miss message. Live, a document not in the cache is sent to Gemini's free tier.
+- One run at a time: a second submission gets a message, not a queue. The upload waits up to 30
+  seconds for the run and then shows the run overview, which refreshes until the run ends. A replay
+  from the cache finishes within those 30 seconds.
+- The limit keeps one live run well inside the free tier's daily requests. A run makes one call for
+  extraction and one per testable requirement: 13 for RFC 6902 (26 KB) and 14 for RFC 10050 (32 KB).
+  At a pessimistic two calls per KB, a 64 KiB document needs at most about 131 calls, about a quarter
+  of the 500 requests a day the project's key had on 27 September 2026 (AI Studio shows the current
+  figure), and extraction's 16,384 output tokens cap the requirements it can return whatever the size.
+
+The review walkthrough on the reference run is the student's, never an agent's, and never a test's:
+the log is append-only, so a stray decision could never be removed. After the walkthrough, copy
+`runs/web/reviews/reference.jsonl` to `experiments/review/rfc6902-3ff2234db6aa.reviews.jsonl`, run
+`dotnet run --project src/SpecTrace.Cli -- score --reviews experiments/review/rfc6902-3ff2234db6aa.reviews.jsonl --out experiments/review`,
+and commit both files.
+
+Known limitations of the review UI:
+
+- There are no accounts. The author of a decision is the name the reviewer types, and the log marks
+  it as self-declared. Anyone who can reach the UI can decide under any name.
+- One run at a time, in one process. Several processes writing the same log are not supported.
+- A decision is kept only where the UI runs. A log under `runs/web/` is not committed until someone
+  copies it, as the walkthrough does.
+- Testable does not generate test cases; a requirement resolved as testable stays a gap.
+- The run list, review and `export` cover the reference run and the runs started from the UI, not
+  runs written by `spectrace run`: the UI knows each of its runs' source documents and checks every
+  span against it before offering the run for review.
+- In live mode, an uploaded document is sent to a free tier that may use it to improve the provider's
+  models. The form asks for public specifications only; nothing else enforces it.
+
 ## Layout
 
 ```
@@ -182,15 +289,15 @@ src/SpecTrace.Core/        verifiable core: domain types, normalisation, spans, 
                            no network, no file I/O, no LLM dependency
 src/SpecTrace.Llm/         probabilistic edge: one client interface, cached and swappable
 src/SpecTrace.Pipeline/    orchestration of the two halves, prompt files
-src/SpecTrace.Cli/         thin entry point: run, extract and score today; export later
+src/SpecTrace.Cli/         thin entry point: run, extract, score and export
+src/SpecTrace.Web/         thin entry point: the review UI, server-rendered, which can also start a run
 tests/SpecTrace.Core.Tests/       unit tests for the core
 tests/SpecTrace.Llm.Tests/        client, cache and backoff, all against fakes; one live check
-tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline end-to-end run against runs/reference
+tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline end-to-end run against runs/reference,
+                                  the review log and the web UI, hosted in-process
 cache/                     committed LLM response cache
 runs/reference/            committed reference run; every other run under runs/ is ignored
 ```
-
-`SpecTrace.Web` (the review UI) belongs to the next milestone and does not exist yet.
 
 `SpecTrace.Core` must never reference `SpecTrace.Llm`. A test in
 `tests/SpecTrace.Pipeline.Tests` asserts this against both the project file and the compiled
