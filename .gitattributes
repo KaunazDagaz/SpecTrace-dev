@@ -7,3 +7,8 @@ experiments/*.md -text
 experiments/review/** -text
 
 src/SpecTrace.Pipeline/Prompts/** -text
+
+*.sh text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+.gcloudignore text eol=lf
