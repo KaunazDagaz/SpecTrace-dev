@@ -31,8 +31,16 @@ public static class LlmClientFactory
                     + $"provider, or set {CachingLlmClient.OfflineVariable}=1 to replay from the "
                     + "committed cache with no key."));
 
+        return Create(new GeminiLlmClient(httpClient, key), cacheDirectory, offline);
+    }
+
+    public static ILlmClient Create(ILlmClient provider, string cacheDirectory, bool offline)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
+
         return new CachingLlmClient(
-            new RateLimitedLlmClient(new GeminiLlmClient(httpClient, key), RequestsPerMinute),
+            new RateLimitedLlmClient(provider, RequestsPerMinute),
             cacheDirectory,
             offline);
     }

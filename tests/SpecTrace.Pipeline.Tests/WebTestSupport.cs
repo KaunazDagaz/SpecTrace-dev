@@ -103,8 +103,19 @@ internal static class ReviewWorkspace
             Repository.PathTo("experiments"));
     }
 
-    public static WebAppHost Host(Workspace workspace, IReadOnlyDictionary<string, string>? environment = null) =>
-        new(workspace, name => environment?.GetValueOrDefault(name), OfflineFlag: false, TimeProvider.System);
+    public static WebAppHost Host(
+        Workspace workspace,
+        IReadOnlyDictionary<string, string>? environment = null,
+        ModelClientFactory? modelClients = null,
+        TimeSpan? runWait = null) =>
+        new(
+            workspace,
+            name => environment?.GetValueOrDefault(name),
+            OfflineFlag: false,
+            TimeProvider.System,
+            modelClients ?? ((_, _) => throw new InvalidOperationException("This test never calls the model.")),
+            PromptSet.Embedded,
+            runWait ?? WebAppHost.DefaultRunWait);
 
     public static string LogOf(Workspace workspace, string key = Workspace.ReferenceKey) => workspace.ReviewLog(key);
 

@@ -40,7 +40,18 @@ public static class Program
             remaining.Add(args[index]);
         }
 
-        var host = new WebAppHost(workspace, Environment.GetEnvironmentVariable, offline, TimeProvider.System);
+        using var network = new SocketsHttpHandler();
+        using var httpClient = new HttpClient(network, disposeHandler: false) { Timeout = PipelineLaunch.CallTimeout };
+        Func<string, string?> environment = Environment.GetEnvironmentVariable;
+
+        var host = new WebAppHost(
+            workspace,
+            environment,
+            offline,
+            TimeProvider.System,
+            PipelineLaunch.ModelClients(httpClient, environment),
+            PromptSet.Embedded,
+            WebAppHost.DefaultRunWait);
 
         await using var app = SpecTraceWebApp.Build(host, [.. remaining]);
 

@@ -27,7 +27,7 @@ public static class SpecTraceCli
 
     public const string CorpusDirectory = "corpus";
 
-    private static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan CallTimeout = PipelineLaunch.CallTimeout;
 
     private static readonly TimeSpan BaselineCallTimeout = TimeSpan.FromMinutes(20);
 
@@ -106,14 +106,8 @@ public static class SpecTraceCli
                 return;
             }
 
-            var result = await PipelineRun
-                .ExecuteAsync(invocation.DocumentPath, invocation.Client, invocation.Model, host.Prompts, TimeProvider.System, token)
-                .ConfigureAwait(false);
-
-            var outputDirectory = invocation.OutputDirectory ?? Path.Combine("runs", result.RunId);
-
-            await RunArtifacts
-                .WriteRunAsync(result, outputDirectory, token)
+            var (result, outputDirectory) = await PipelineLaunch
+                .RunAsync(invocation.DocumentPath, invocation.Client, invocation.Model, host.Prompts, TimeProvider.System, invocation.OutputDirectory, token)
                 .ConfigureAwait(false);
 
             WriteRunSummary(host.Out, result, invocation, outputDirectory);
@@ -673,8 +667,7 @@ public static class SpecTraceCli
 
         var model = values.GetValueOrDefault("--model", LlmClientFactory.DefaultModel);
         var cacheDirectory = values.GetValueOrDefault("--cache", "cache");
-        var offline = flags.Contains(OfflineFlag)
-            || CachingLlmClient.IsOffline(host.Environment(CachingLlmClient.OfflineVariable));
+        var offline = PipelineLaunch.IsOffline(host.Environment, flags.Contains(OfflineFlag));
 
         using var httpClient = new HttpClient(host.Network, disposeHandler: false)
         {
@@ -683,11 +676,7 @@ public static class SpecTraceCli
 
         try
         {
-            var client = LlmClientFactory.Create(
-                httpClient,
-                cacheDirectory,
-                offline,
-                GeminiLlmClient.ApiKeyFrom(host.Environment(GeminiLlmClient.ApiKeyVariable)));
+            var client = PipelineLaunch.ModelClients(httpClient, host.Environment)(cacheDirectory, offline);
 
             var invocation = new Invocation(documentPath, client, model, values.GetValueOrDefault("--out"), offline, arm);
 

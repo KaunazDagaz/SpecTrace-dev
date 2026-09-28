@@ -22,6 +22,15 @@ public static class SpecTraceWebApp
 
         builder.Services.AddSingleton(host);
         builder.Services.AddSingleton(new RunCatalog(host.Workspace, host.Time));
+        builder.Services.AddSingleton(services => new RunCoordinator(
+            host.Workspace,
+            host.ModelClients,
+            host.Prompts,
+            LlmClientFactory.DefaultModel,
+            host.Offline,
+            host.Time,
+            services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping));
+        builder.Services.AddHostedService<RunLifetime>();
         builder.Services.AddRazorPages();
 
         var app = builder.Build();
