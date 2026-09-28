@@ -48,9 +48,16 @@ internal sealed partial class WebApp : IAsyncDisposable
         return await response.Content.ReadAsStringAsync();
     }
 
-    public async Task<HttpResponseMessage> PostAsync(string pagePath, string handler, IEnumerable<KeyValuePair<string, string>> fields)
+    public Task<HttpResponseMessage> PostAsync(string pagePath, string handler, IEnumerable<KeyValuePair<string, string>> fields) =>
+        PostAsync(pagePath, handler, fields, tokenPage: pagePath);
+
+    public async Task<HttpResponseMessage> PostAsync(
+        string pagePath,
+        string handler,
+        IEnumerable<KeyValuePair<string, string>> fields,
+        string tokenPage)
     {
-        var token = await AntiforgeryTokenAsync(pagePath);
+        var token = await AntiforgeryTokenAsync(tokenPage);
         var form = fields.Append(new KeyValuePair<string, string>("__RequestVerificationToken", token)).ToList();
 
         return await Client.PostAsync($"{pagePath}?handler={handler}", new FormUrlEncodedContent(form));

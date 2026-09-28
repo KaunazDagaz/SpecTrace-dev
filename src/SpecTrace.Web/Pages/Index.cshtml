@@ -48,8 +48,21 @@ testable requirement, at most ten a minute, so it can take several minutes.</p>
 {
 <p class="warning">A run is in progress: <a href="/runs/@running.RunId">@running.DocumentId</a>, started @Display.Utc(running.StartedAt). A new run can start when it finishes.</p>
 }
+@if (Model.CorpusDocuments.Count > 0)
+{
+<form method="post" asp-page-handler="Corpus" id="corpus-run">
+<label for="corpus">A document from the corpus, so you need no file</label>
+<select id="corpus" name="corpus">
+@foreach (var name in Model.CorpusDocuments)
+{
+<option value="@name">@name</option>
+}
+</select>
+<button type="submit">Run this document</button>
+</form>
+}
 <form method="post" enctype="multipart/form-data">
-<label for="document">Specification, plain text</label>
+<label for="document">Or your own specification, plain text</label>
 <input type="file" id="document" name="document" accept=".txt,text/plain" required>
 <button type="submit">Start the run</button>
 </form>

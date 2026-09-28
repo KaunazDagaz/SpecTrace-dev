@@ -7,12 +7,21 @@ public static class SpecTraceWebApp
 {
     public const string ReviewerCookie = "spectrace-reviewer";
 
+    public const string HealthPath = "/health";
+
     public static WebApplication Build(WebAppHost host, string[] args)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(args);
 
         CheckWorkspace(host.Workspace);
+
+        if (host.PublicDemo && !host.Offline)
+        {
+            throw new InvalidOperationException(
+                $"The public demo ({WebAppHost.PublicDemoVariable}=1 or {Program.PublicDemoFlag}) runs offline only, and says so on "
+                + $"every page. Set {PipelineLaunch.OfflineVariable}=1 or pass {Program.OfflineFlag} as well.");
+        }
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -21,7 +30,8 @@ public static class SpecTraceWebApp
         });
 
         builder.Services.AddSingleton(host);
-        builder.Services.AddSingleton(new RunCatalog(host.Workspace, host.Time));
+        builder.Services.AddSingleton(new RunCatalog(host.Workspace, host.Time) { ReferenceReadOnly = host.PublicDemo });
+        builder.Services.AddHealthChecks();
         builder.Services.AddSingleton(services => new RunCoordinator(
             host.Workspace,
             host.ModelClients,
@@ -36,6 +46,7 @@ public static class SpecTraceWebApp
         var app = builder.Build();
 
         app.MapRazorPages();
+        app.MapHealthChecks(HealthPath);
         app.MapGet("/runs/{key}/matrix.md", (string key, RunCatalog catalog, CancellationToken token) =>
             ExportAsync(key, MatrixExport.MarkdownFormat, "text/markdown", "md", catalog, token));
         app.MapGet("/runs/{key}/matrix.csv", (string key, RunCatalog catalog, CancellationToken token) =>

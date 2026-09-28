@@ -54,7 +54,28 @@ public sealed class IndexModel : PageModel
             bytes = buffer.ToArray();
         }
 
-        var outcome = await _coordinator.StartAsync(document.FileName, bytes, cancellationToken);
+        return await StartAsync(document.FileName, bytes, cancellationToken);
+    }
+
+    public async Task<IActionResult> OnPostCorpusAsync(string? corpus, CancellationToken cancellationToken)
+    {
+        Load();
+
+        var name = CorpusDocuments.FirstOrDefault(candidate => string.Equals(candidate, corpus, StringComparison.Ordinal));
+
+        if (name is null)
+        {
+            return Refuse("Choose one of the corpus documents listed in the form.", StatusCodes.Status400BadRequest);
+        }
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(Path.Combine(Host.Workspace.Corpus, name), cancellationToken);
+
+        return await StartAsync(name, bytes, cancellationToken);
+    }
+
+    private async Task<IActionResult> StartAsync(string fileName, byte[] bytes, CancellationToken cancellationToken)
+    {
+        var outcome = await _coordinator.StartAsync(fileName, bytes, cancellationToken);
 
         switch (outcome)
         {

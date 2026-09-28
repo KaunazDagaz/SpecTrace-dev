@@ -6,6 +6,8 @@ public static class Program
 {
     public const string OfflineFlag = "--offline";
 
+    public const string PublicDemoFlag = "--public-demo";
+
     public const string RunsOption = "--runs";
 
     public const string ReferenceOption = "--reference";
@@ -13,12 +15,13 @@ public static class Program
     public static async Task<int> Main(string[] args)
     {
         var offline = args.Contains(OfflineFlag, StringComparer.Ordinal);
+        var publicDemo = args.Contains(PublicDemoFlag, StringComparer.Ordinal);
         var remaining = new List<string>();
         var workspace = Workspace.Default;
 
         for (var index = 0; index < args.Length; index++)
         {
-            if (args[index] == OfflineFlag)
+            if (args[index] is OfflineFlag or PublicDemoFlag)
             {
                 continue;
             }
@@ -51,7 +54,10 @@ public static class Program
             TimeProvider.System,
             PipelineLaunch.ModelClients(httpClient, environment),
             PromptSet.Embedded,
-            WebAppHost.DefaultRunWait);
+            WebAppHost.DefaultRunWait)
+        {
+            PublicDemoFlag = publicDemo,
+        };
 
         await using var app = SpecTraceWebApp.Build(host, [.. remaining]);
 

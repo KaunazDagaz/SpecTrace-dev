@@ -20,6 +20,14 @@ public sealed class ReviewRefusedException : Exception
     }
 }
 
+public sealed class RunReadOnlyException : Exception
+{
+    public RunReadOnlyException(string message)
+        : base(message)
+    {
+    }
+}
+
 public sealed record RunListing(
     string Key,
     string DocumentId,
@@ -53,6 +61,10 @@ public sealed record LoadedRun(
 
 public sealed class RunCatalog
 {
+    public const string ReadOnlyReason =
+        "The reference run is read-only on this server: it shows the author's own review, and no decision on it is "
+        + "accepted here. To try reviewing, start your own run of a corpus document from the run list. Nothing was logged.";
+
     private readonly Workspace _workspace;
     private readonly RunRecords _records;
     private readonly TimeProvider _timeProvider;
@@ -68,6 +80,10 @@ public sealed class RunCatalog
     }
 
     public Workspace Workspace => _workspace;
+
+    public bool ReferenceReadOnly { get; init; }
+
+    public bool IsReadOnly(string key) => ReferenceReadOnly && key == Workspace.ReferenceKey;
 
     public IReadOnlyList<RunListing> List()
     {
@@ -172,6 +188,8 @@ public sealed class RunCatalog
         string author,
         CancellationToken cancellationToken)
     {
+        RefuseIfReadOnly(key);
+
         var run = await LoadAsync(key, cancellationToken).ConfigureAwait(false);
         var reviewed = run.Reviewed.Cases.FirstOrDefault(candidate => candidate.Original.Id == testCaseId)
             ?? throw new ReviewRefusedException($"Run {run.RunId} has no test case '{testCaseId}'. Nothing was logged.");
@@ -194,6 +212,8 @@ public sealed class RunCatalog
         string author,
         CancellationToken cancellationToken)
     {
+        RefuseIfReadOnly(key);
+
         var run = await LoadAsync(key, cancellationToken).ConfigureAwait(false);
         var item = run.Reviewed.Items.FirstOrDefault(candidate => candidate.Entry.ItemId == itemId)
             ?? throw new ReviewRefusedException($"Run {run.RunId} has no decision-queue item '{itemId}'. Nothing was logged.");
@@ -218,6 +238,14 @@ public sealed class RunCatalog
         RunState.Interrupted => "interrupted",
         _ => throw new ArgumentOutOfRangeException(nameof(state), state, null),
     };
+
+    private void RefuseIfReadOnly(string key)
+    {
+        if (IsReadOnly(key))
+        {
+            throw new RunReadOnlyException(ReadOnlyReason);
+        }
+    }
 
     private RunListing? Reference()
     {
