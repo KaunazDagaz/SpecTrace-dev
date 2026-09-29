@@ -1,0 +1,5 @@
+{"run_id":"rfc6902-3ff2234db6aa","target":"decision_queue_item","item_id":"DQ-rfc6902-1dd2c2","requirement_id":null,"decision":"testable","author":"Mikita Besau","author_self_declared":true,"at":"2026-09-28T07:05:38.6259696+00:00"}
+{"run_id":"rfc6902-3ff2234db6aa","target":"test_case","test_case_id":"TC-399ed7-02","decision":"accept","author":"Mikita Besau","author_self_declared":true,"at":"2026-09-28T07:05:43.0967411+00:00"}
+{"run_id":"rfc6902-3ff2234db6aa","target":"test_case","test_case_id":"TC-399ed7-02","decision":"reject","author":"Mikita Besau","author_self_declared":true,"at":"2026-09-28T07:05:59.7546473+00:00"}
+{"run_id":"rfc6902-3ff2234db6aa","target":"test_case","test_case_id":"TC-399ed7-02","decision":"accept","author":"Mikita Besau","author_self_declared":true,"at":"2026-09-28T07:06:04.1909816+00:00"}
+{"run_id":"rfc6902-3ff2234db6aa","target":"test_case","test_case_id":"TC-399ed7-01","decision":"reject","author":"Mikita Besau","author_self_declared":true,"at":"2026-09-28T07:06:10.5019038+00:00"}
