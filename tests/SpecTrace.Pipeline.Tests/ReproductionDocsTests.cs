@@ -38,7 +38,7 @@ public sealed class ReproductionDocsTests
         Assert.True(File.Exists(Repository.PathTo("deploy", "smoke-test.sh")));
         Assert.Contains(
             File.ReadAllLines(Repository.PathTo("README.md")),
-            line => line.Trim() == $"{Script}<service URL>");
+            line => line.Trim().StartsWith($"{Script}<service URL>", StringComparison.Ordinal));
         Assert.Contains(
             Workflow,
             line => line.Trim().StartsWith($"{Script}http://localhost:", StringComparison.Ordinal));

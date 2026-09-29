@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-if [ "$#" -ne 1 ]; then
-  echo "usage: bash deploy/smoke-test.sh BASE_URL" >&2
-  echo "  for example: bash deploy/smoke-test.sh https://spectrace-123456789012.europe-north1.run.app" >&2
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ] || { [ "$#" -eq 2 ] && [ "$2" != --live ]; }; then
+  echo "usage: bash deploy/smoke-test.sh BASE_URL [--live]" >&2
+  echo "  without --live the server must run offline; with --live it must run live with a key, and one small live" >&2
+  echo "  run spends about two requests from the daily quota" >&2
+  echo "  for example: bash deploy/smoke-test.sh https://spectrace-123456789012.europe-north1.run.app --live" >&2
   exit 64
 fi
 
 base="${1%/}"
+live=false
+[ "${2:-}" = --live ] && live=true
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 jar="$work/cookies"
@@ -59,7 +63,11 @@ refuse() {
   request "${fields[@]}" --data-urlencode "__RequestVerificationToken=$token" "$base/runs/reference/review?handler=$handler"
 }
 
-echo "SpecTrace smoke test against $base"
+if [ "$live" = true ]; then
+  echo "SpecTrace smoke test against $base, expecting a live server with a key"
+else
+  echo "SpecTrace smoke test against $base, expecting an offline server"
+fi
 echo
 
 code=000
@@ -71,10 +79,20 @@ done
 if [ "$code" = 200 ] && has Healthy; then pass "/health answers 200 Healthy"; else fail "/health answered $code"; fi
 
 code="$(get /)"
-if [ "$code" = 200 ] && has 'id="demo"' && has 'This is an offline demo.' && has 'disappear when it restarts'; then
-  pass "the run list carries the offline-demo banner"
+if [ "$live" = true ]; then
+  if [ "$code" = 200 ] && has 'id="demo"' && has 'This is a public demo that calls a model.' && has 'disappear when it restarts' \
+    && has 'This server runs live.' && ! has 'No API key is set'; then
+    pass "the run list carries the live-demo banner and says the server runs live, with a key"
+  else
+    fail "the run list answered $code without the live-demo banner, or says the server is offline or has no key"
+  fi
 else
-  fail "the run list answered $code without the offline-demo banner"
+  if [ "$code" = 200 ] && has 'id="demo"' && has 'This is an offline demo.' && has 'disappear when it restarts' \
+    && has 'This server runs offline.'; then
+    pass "the run list carries the offline-demo banner and says the server runs offline"
+  else
+    fail "the run list answered $code without the offline-demo banner, or says the server runs live"
+  fi
 fi
 if has 'href="/runs/reference"'; then pass "the run list shows the reference run"; else fail "the run list does not show the reference run"; fi
 token="$(field '.*name="__RequestVerificationToken" type="hidden" value="\([^"]*\)".*')"
@@ -165,19 +183,30 @@ for name in $offered; do
   fi
 done
 
-printf 'SpecTrace smoke test\n\n1.  Introduction\n\n   A smoke test MUST NOT reach a model.\n' > "$work/not-in-the-cache.txt"
+printf 'SpecTrace smoke test\n\n1.  Introduction\n\n   A conforming client MUST send the smoke-test header.\n' > "$work/not-in-the-cache.txt"
 code="$(cd "$work" && request -F "document=@not-in-the-cache.txt;type=text/plain" -F "__RequestVerificationToken=$token" "$base/")"
 if [ "$code" = 302 ]; then
   run_id="$(location)"
   run_id="${run_id#/runs/}"
   code="$(follow "/runs/$run_id")"
-  if has 'This run failed.' && has 'This document is not in the cache, and the server runs offline'; then
-    pass "an upload that is not in the cache fails closed as run $run_id, with the offline message"
+  if [ "$live" = true ]; then
+    if [ "$code" = 200 ] && has 'Review this run'; then
+      pass "an upload that is not in the cache runs live through the model to completion as run $run_id"
+    else
+      fail "an upload that is not in the cache did not complete live; run $run_id answered $code"
+      sed -n '/id="run-state"/,/<\/div>/p' "$work/body" \
+        | sed 's/<[^>]*>//g; s/&#xA;/ /g; s/&quot;/"/g; s/&#x27;/'"'"'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/  */ /g' \
+        | sed '/^[[:space:]]*$/d; s/^/      /'
+    fi
   else
-    fail "an upload that is not in the cache did not fail with the offline message; run $run_id answered $code"
+    if has 'This run failed.' && has 'This document is not in the cache, and the server runs offline'; then
+      pass "an upload that is not in the cache fails closed as run $run_id, with the offline message"
+    else
+      fail "an upload that is not in the cache did not fail with the offline message; run $run_id answered $code"
+    fi
+    code="$(get "/runs/$run_id/review")"
+    if [ "$code" = 404 ]; then pass "the failed run is not offered for review"; else fail "the failed run's review answered $code"; fi
   fi
-  code="$(get "/runs/$run_id/review")"
-  if [ "$code" = 404 ]; then pass "the failed run is not offered for review"; else fail "the failed run's review answered $code"; fi
 else
   fail "uploading a document that is not in the cache answered $code"
 fi
