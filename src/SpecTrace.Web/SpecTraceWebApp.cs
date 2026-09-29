@@ -16,11 +16,12 @@ public static class SpecTraceWebApp
 
         CheckWorkspace(host.Workspace);
 
-        if (host.PublicDemo && !host.Offline)
+        if (host.PublicDemo && !host.Offline && !host.HasApiKey)
         {
             throw new InvalidOperationException(
-                $"The public demo ({WebAppHost.PublicDemoVariable}=1 or {Program.PublicDemoFlag}) runs offline only, and says so on "
-                + $"every page. Set {PipelineLaunch.OfflineVariable}=1 or pass {Program.OfflineFlag} as well.");
+                $"The public demo ({WebAppHost.PublicDemoVariable}=1 or {Program.PublicDemoFlag}) runs either offline or live with a key, "
+                + $"and its banner says which. Live with no key, every run would fail: set {PipelineLaunch.ApiKeyVariable}, or set "
+                + $"{PipelineLaunch.OfflineVariable}=1 or pass {Program.OfflineFlag}.");
         }
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
