@@ -391,21 +391,32 @@ bash deploy/smoke-test.sh <service URL> --live
 
 Before the first live deploy, the student puts the AI Studio key of the key project into Secret Manager
 in the deployment project, once. In Cloud Shell, the key is read without being echoed or kept in the
-shell history; paste it when the cursor waits, then press Enter:
+shell history. The cursor waits with no prompt: paste the key, then press Enter.
 
 ```
 gcloud services enable secretmanager.googleapis.com --project spectrace-deploy
-read -rs GEMINI_KEY && printf '%s' "$GEMINI_KEY" | gcloud secrets create gemini-api-key --project spectrace-deploy --replication-policy=automatic --data-file=- ; unset GEMINI_KEY
+printf '\e[?2004l'; read -rs GEMINI_KEY; printf '\e[?2004h\n'; printf '%s' "$GEMINI_KEY" | tr -d '[:space:]' | gcloud secrets create gemini-api-key --project spectrace-deploy --replication-policy=automatic --data-file=- ; unset GEMINI_KEY
 ```
 
-A new key later is a new version of the same secret, `gcloud secrets versions add gemini-api-key`
-with the same `read` and `--data-file=-`, followed by a redeploy.
+The first `printf` turns off the terminal's bracketed paste around the `read`. Otherwise Cloud Shell
+wraps the pasted key in escape codes, `read` keeps them, and Google answers every live call with an
+HTML `Error 400 (Bad Request)`; this happened on the first live deploy. `tr` drops any stray space or
+line end. To check a stored version without printing the key, this must print nothing:
+
+```
+gcloud secrets versions access latest --secret gemini-api-key --project spectrace-deploy | LC_ALL=C tr -d '[:graph:]' | od -An -c
+```
+
+`deploy/deploy.sh` makes the same check and refuses to deploy a version that fails it. A new key
+later is a new version of the same secret, `gcloud secrets versions add gemini-api-key --project
+spectrace-deploy --data-file=-` after the same `read`, followed by a redeploy.
 
 `deploy/deploy.sh` runs these steps:
 
 1. It checks that billing is disabled on the key project and enabled on the deployment project.
 2. It checks that the reference review is committed.
-3. It checks that the secret's latest version is enabled.
+3. It checks that the secret's latest version is enabled and holds only printable characters, without
+   printing it.
 4. It enables the Cloud Run, Cloud Build, Artifact Registry and Secret Manager APIs.
 5. It grants the Compute Engine default service account `roles/run.builder` and read access to that
    one secret.

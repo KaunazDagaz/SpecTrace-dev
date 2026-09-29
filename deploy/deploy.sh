@@ -66,20 +66,29 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
   secretmanager.googleapis.com --project "$deploy_project"
 
 step "5. The secret $secret must hold the Gemini key made in $key_project"
-create_secret="Create it in Cloud Shell, where the key is read without being echoed or kept in the shell history: \
-read -rs GEMINI_KEY && printf '%s' \"\$GEMINI_KEY\" | gcloud secrets create $secret --project $deploy_project \
---replication-policy=automatic --data-file=- ; unset GEMINI_KEY. Paste the AI Studio key of $key_project when the \
-cursor waits, then press Enter. Never create a key in $deploy_project: calls on it would be billed."
+read_key="printf '\e[?2004l'; read -rs GEMINI_KEY; printf '\e[?2004h\n'; printf '%s' \"\$GEMINI_KEY\" | tr -d '[:space:]' |"
+paste_note="Paste the AI Studio key of $key_project when the cursor waits, then press Enter. The first printf turns off the \
+terminal's bracketed paste, which would otherwise wrap the key in escape codes, and nothing is echoed or kept in the \
+shell history. Never create a key in $deploy_project: calls on it would be billed."
+create_secret="Create it in Cloud Shell: $read_key gcloud secrets create $secret --project $deploy_project \
+--replication-policy=automatic --data-file=- ; unset GEMINI_KEY. $paste_note"
+add_version="Add a clean version in Cloud Shell: $read_key gcloud secrets versions add $secret --project $deploy_project \
+--data-file=- ; unset GEMINI_KEY. $paste_note"
 latest="$(gcloud secrets versions describe latest --secret "$secret" --project "$deploy_project" \
   --format='value(name,state)' 2>"$errors")" \
   || refuse "The secret $secret is missing from $deploy_project, or has no version: $(cat "$errors") $create_secret"
 read -r version_name version_state <<< "$latest"
 secret_version="${version_name##*/}"
 [ "$version_state" = ENABLED ] \
-  || refuse "The latest version of $secret, $secret_version, is $version_state, not ENABLED. Add an enabled version \
-in Cloud Shell: read -rs GEMINI_KEY && printf '%s' \"\$GEMINI_KEY\" | gcloud secrets versions add $secret --project \
-$deploy_project --data-file=- ; unset GEMINI_KEY."
-echo "$secret version $secret_version is enabled; the service will read the key from it."
+  || refuse "The latest version of $secret, $secret_version, is $version_state, not ENABLED. $add_version"
+stray="$(gcloud secrets versions access "$secret_version" --secret "$secret" --project "$deploy_project" 2>"$errors" \
+  | LC_ALL=C tr -d '[:graph:]' | wc -c)" \
+  || refuse "gcloud could not read version $secret_version of $secret to check it: $(cat "$errors")"
+[ "$((stray))" -eq 0 ] \
+  || refuse "Version $secret_version of $secret holds $((stray)) character(s) that are not printable, such as a space, a \
+line end, or the escape codes a terminal wraps around pasted text. Google rejects a request carrying such a key with \
+an HTML 'Error 400 (Bad Request)'. $add_version Then run this script again."
+echo "$secret version $secret_version is enabled and holds only printable characters; the service will read the key from it."
 
 step "6. Let the Compute Engine default service account build the image and read the key"
 project_number="$(gcloud projects describe "$deploy_project" --format='value(projectNumber)')"
