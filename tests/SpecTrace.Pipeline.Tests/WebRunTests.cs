@@ -336,6 +336,29 @@ public sealed class WebRunTests
         Assert.DoesNotContain("This server runs offline.", livePage, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task LiveWithNoKeyEvenAFullyCachedCorpusDocumentFailsWithTheMissingKeyReasonAndThePageSaysSo()
+    {
+        using var scratch = new ScratchDirectory();
+        var workspace = ReviewWorkspace.In(scratch);
+        var network = new NoNetworkHandler();
+        using var http = new HttpClient(network);
+        await using var web = await WebApp.StartAsync(ReviewWorkspace.Host(workspace, Live, PipelineLaunch.ModelClients(http, name => Live.GetValueOrDefault(name))));
+
+        var form = WebUtility.HtmlDecode(await web.GetStringAsync("/"));
+
+        Assert.Contains("in the server's environment, so no run can start here", form, StringComparison.Ordinal);
+
+        using var response = await web.PostAsync("/", "Corpus", [new("corpus", "rfc6902.txt")]);
+        await web.Services.GetRequiredService<RunCoordinator>().Current;
+
+        var record = new RunRecords(workspace).Read(ReferenceRunId)!;
+
+        Assert.Equal(RunState.Failed, record.State);
+        Assert.Contains($"{PipelineLaunch.ApiKeyVariable} is not set", record.Reason, StringComparison.Ordinal);
+        Assert.Empty(network.Attempted);
+    }
+
     private static WebAppHost OfflineHost(Workspace workspace, HttpClient http) =>
         ReviewWorkspace.Host(workspace, Offline, PipelineLaunch.ModelClients(http, name => Offline.GetValueOrDefault(name)));
 

@@ -36,7 +36,9 @@ improve Google's models. Upload public specifications only. A live run makes one
 testable requirement, at most ten a minute, so it can take several minutes.</p>
 @if (!Model.Host.HasApiKey)
 {
-<p><strong>No API key is set</strong> in the server's environment, so only documents already in the cache can run.</p>
+<p><strong>No API key is set</strong> in the server's environment, so no run can start here: a live run needs
+@PipelineLaunch.ApiKeyVariable even when every call it makes is in the cache. To replay cached documents with no key, start the
+server offline.</p>
 }
 </div>
 }

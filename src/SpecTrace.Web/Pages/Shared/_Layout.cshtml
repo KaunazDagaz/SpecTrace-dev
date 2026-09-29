@@ -48,11 +48,24 @@ textarea, input[type=text] { width: 100%; box-sizing: border-box; font: inherit;
 @if (Host.PublicDemo)
 {
 <div class="demo" id="demo">
+@if (Host.Offline)
+{
 <p><strong>This is an offline demo.</strong> It replays the model answers recorded in the repository's committed cache and
 never calls a model; there is no API key anywhere in this service. A new document needs a local run with an API key:
 see the <a href="@RepositoryUrl">README</a>.</p>
 <p>The reference run shows the author's own review and is read-only here. To try reviewing, start your own run of a corpus
 document from the <a href="/#new-run">run list</a>. Reviewer names are self-declared: nobody checks them.</p>
+}
+else
+{
+<p><strong>This is a public demo that calls a model.</strong> A document whose model calls are in the repository's committed
+cache replays from it without calling the model. Any other document you upload is sent to Google's Gemini API, on its free
+tier, through the author's API key. Inputs there may be used to improve Google's models, so <strong>upload public
+specifications only</strong>, never personal, confidential or employer material. Every visitor shares one daily request
+quota: when it runs out, runs stop with a quota message until it resets. See the <a href="@RepositoryUrl">README</a>.</p>
+<p>The reference run shows the author's own review and is read-only here. To try reviewing, start your own run from the
+<a href="/#new-run">run list</a>. Reviewer names are self-declared: nobody checks them.</p>
+}
 <p><strong>Runs and decisions made here live only in this instance and disappear when it restarts</strong>, which also happens
 when it scales to zero after a quiet spell, and on every redeploy.</p>
 </div>

@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using SpecTrace.Core;
@@ -24,6 +26,13 @@ public sealed partial class WebDemoTests
 
     private static readonly IReadOnlyDictionary<string, string> OfflineOnly =
         new Dictionary<string, string>(StringComparer.Ordinal) { [PipelineLaunch.OfflineVariable] = "1" };
+
+    private static readonly IReadOnlyDictionary<string, string> LiveDemo =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [WebAppHost.PublicDemoVariable] = "1",
+            [PipelineLaunch.ApiKeyVariable] = "a-key-no-request-ever-reaches",
+        };
 
     [Fact]
     public async Task OnThePublicDemoEveryDecisionOnTheReferenceRunIsRefusedWith403AndTheLogStaysByteIdentical()
@@ -235,6 +244,24 @@ public sealed partial class WebDemoTests
             }
         }
 
+        using var liveScratch = new ScratchDirectory();
+
+        await using (var live = await WebApp.StartAsync(ReviewWorkspace.Host(ReviewWorkspace.In(liveScratch), LiveDemo)))
+        {
+            foreach (var path in new[] { "/", ReviewPage })
+            {
+                var page = WebUtility.HtmlDecode(await live.GetStringAsync(path));
+
+                Assert.Contains("This is a public demo that calls a model.", page, StringComparison.Ordinal);
+                Assert.Contains("sent to Google's Gemini API, on its free", page, StringComparison.Ordinal);
+                Assert.Contains("specifications only", page, StringComparison.Ordinal);
+                Assert.Contains("Every visitor shares one daily request", page, StringComparison.Ordinal);
+                Assert.Contains("Runs and decisions made here live only in this instance and disappear when it restarts", page, StringComparison.Ordinal);
+                Assert.DoesNotContain("This is an offline demo.", page, StringComparison.Ordinal);
+                Assert.DoesNotContain("there is no API key anywhere in this service", page, StringComparison.Ordinal);
+            }
+        }
+
         using var plainScratch = new ScratchDirectory();
         await using var plain = await WebApp.StartAsync(Host(ReviewWorkspace.In(plainScratch), OfflineOnly, http));
 
@@ -243,7 +270,7 @@ public sealed partial class WebDemoTests
     }
 
     [Fact]
-    public void ThePublicDemoRefusesToStartUnlessTheServerRunsOffline()
+    public async Task ThePublicDemoRefusesToStartLiveWithoutAKeyAndStartsLiveWithOne()
     {
         using var scratch = new ScratchDirectory();
         var workspace = ReviewWorkspace.In(scratch);
@@ -257,8 +284,44 @@ public sealed partial class WebDemoTests
         {
             var refusal = Assert.Throws<InvalidOperationException>(() => SpecTraceWebApp.Build(host, []));
 
+            Assert.Contains(PipelineLaunch.ApiKeyVariable, refusal.Message, StringComparison.Ordinal);
             Assert.Contains(PipelineLaunch.OfflineVariable, refusal.Message, StringComparison.Ordinal);
         }
+
+        await using var live = await WebApp.StartAsync(ReviewWorkspace.Host(workspace, LiveDemo));
+
+        Assert.Contains("id=\"demo\"", await live.GetStringAsync("/"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OnTheLiveDemoAnUploadNotInTheCacheRunsThroughTheProviderWhileTheReferenceStaysReadOnly()
+    {
+        using var scratch = new ScratchDirectory();
+        var workspace = ReviewWorkspace.In(scratch);
+        var log = await SeedReferenceLogAsync(workspace);
+        var before = await File.ReadAllBytesAsync(log);
+        var provider = RoutingLlmClient.For(
+            ModelAnswer.With(("MUST", "A conforming client MUST send the smoke-test header.", "testable")),
+            _ => GenerationAnswerJson.Cases(("positive", "The client sends the smoke-test header")));
+
+        await using var web = await WebApp.StartAsync(ReviewWorkspace.Host(
+            workspace,
+            LiveDemo,
+            (cache, offline) => LlmClientFactory.Create(provider, cache, offline)));
+
+        using var upload = await UploadAsync(web, "smoke.txt", Encoding.UTF8.GetBytes(
+            "Smoke\n\n1.  Introduction\n\n   A conforming client MUST send the smoke-test header.\n"));
+        await web.Services.GetRequiredService<RunCoordinator>().Current;
+
+        var runId = upload.Headers.Location!.OriginalString["/runs/".Length..];
+
+        Assert.Equal(RunState.Completed, new RunRecords(workspace).Read(runId)!.State);
+        Assert.Equal(DocumentSource.Upload, new RunRecords(workspace).Read(runId)!.Source);
+
+        using var refused = await web.PostAsync(ReviewPage, "Case", ReviewWorkspace.Case("TC-07e6ff-02", "reject"), tokenPage: "/");
+
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Equal(before, await File.ReadAllBytesAsync(log));
     }
 
     [Fact]
@@ -276,6 +339,22 @@ public sealed partial class WebDemoTests
 
     private static WebAppHost Host(Workspace workspace, IReadOnlyDictionary<string, string> environment, HttpClient http) =>
         ReviewWorkspace.Host(workspace, environment, PipelineLaunch.ModelClients(http, name => environment.GetValueOrDefault(name)));
+
+    private static async Task<HttpResponseMessage> UploadAsync(WebApp web, string fileName, byte[] bytes)
+    {
+        var token = await web.AntiforgeryTokenAsync("/");
+        var file = new ByteArrayContent(bytes);
+
+        file.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(token), "__RequestVerificationToken" },
+            { file, "document", fileName },
+        };
+
+        return await web.Client.PostAsync("/", form);
+    }
 
     private static async Task<string> SeedReferenceLogAsync(Workspace workspace)
     {
