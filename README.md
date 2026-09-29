@@ -46,15 +46,18 @@ Milestone M1 (vertical slice) is accepted and M2 is in progress. What exists tod
   items a person must decide, and see the matrix those decisions give, exported as Markdown or CSV.
   Every decision is appended to an append-only log and no pipeline file is ever rewritten. The same
   UI can start a run from an uploaded plain-text specification.
+- the container image of the review UI and its deployment to Cloud Run as a public, offline demo
+  with no key anywhere (see [Deployment](#deployment)). CI builds the image and smoke-tests it on
+  every push; the live URL is recorded under Deployment once the service is deployed.
 
-Not implemented yet, with its own task in this milestone: deployment of the review UI. The gold
-standard itself is annotated by hand.
+The gold standard itself is annotated by hand.
 
 ## Prerequisites
 
 - .NET SDK 10.0.x. `global.json` asks for `10.0.100` or a later feature band; every project
   targets `net10.0`, set once in `Directory.Build.props`.
-- Nothing else. No database, no container runtime, no API key.
+- Nothing else to reproduce the results: no database, no container runtime, no API key. Docker is
+  needed only to build the deployment image locally, and `gcloud` only to deploy it.
 
 ## Reproduce
 
@@ -202,7 +205,10 @@ dotnet run --project src/SpecTrace.Web -- --offline
 ```
 
 `SPECTRACE_OFFLINE=1` works the same way as `--offline`. `--urls http://localhost:5080` changes the
-address, and `--runs <dir>` moves everything the UI writes to another directory.
+address, and `--runs <dir>` moves everything the UI writes to another directory. `--public-demo`, or
+`SPECTRACE_PUBLIC_DEMO=1`, is what the deployed image switches on: it makes the reference run
+read-only and puts the demo banner on every page, and it refuses to start unless the server runs
+offline. See [Deployment](#deployment).
 
 Pages, all server-rendered, with no JavaScript and no accounts:
 
@@ -245,6 +251,8 @@ Where the UI writes, all under `runs/`, which git ignores except `runs/reference
 
 Starting a run:
 
+- The form offers every `corpus/*.txt` document by name, so trying the UI needs no file. Choosing one
+  runs exactly what uploading its bytes would.
 - The upload is one UTF-8 plain-text file of at most 64 KiB. The pipeline is built for IETF RFC plain
   text and public specifications only; another format may lose its section labels or produce quotes
   that fail verification, which are dropped and listed, never guessed into place.
@@ -282,6 +290,110 @@ Known limitations of the review UI:
 - In live mode, an uploaded document is sent to a free tier that may use it to improve the provider's
   models. The form asks for public specifications only; nothing else enforces it.
 
+## Deployment
+
+The review UI runs publicly on Google Cloud Run as an offline demo. It replays the committed cache,
+holds no API key and never calls a model.
+
+| | |
+|---|---|
+| Live URL | *pending: recorded here once the service is deployed* |
+| Deployment project | *pending*. Billing enabled, used only for Cloud Run, Cloud Build and Artifact Registry. Budget alert: *pending*, with emails at 50%, 90% and 100% of actual spend |
+| Key project | *pending*. No billing, holds only the Gemini API key made in AI Studio, and is never deployed to |
+| Region | `europe-north1` (Hamina, Finland): the Tier 1 Cloud Run region nearest to Lithuania, marked low CO2 |
+| Service | `spectrace`: public without sign-in, 0 to 1 instances, request-based billing, no environment variable and no secret in its configuration |
+
+The two projects are kept apart on purpose. Enabling billing on a Google Cloud project removes the
+Gemini free tier on that project, and every call then bills from the first token. Cloud Run needs
+billing, so the service lives in a project that holds no key, and the key lives in a project that
+has no billing. `deploy/deploy.sh` stops before deploying anything if billing is enabled on the key
+project.
+
+### What the public service does, and what it does not
+
+It does:
+
+- show the reference run with the author's review, read-only: the run overview, every requirement
+  in its source context with its test cases and the decisions logged on them, and the reviewed
+  matrix with its Markdown and CSV export;
+- replay a corpus document from the committed cache as a visitor's own run, which the visitor can
+  review like any other. RFC 6902 replays to the reference run's artifacts byte for byte.
+
+It does not:
+
+- call a model. A document not in the cache ends with a cache-miss message; a new document needs
+  a local run with `GEMINI_API_KEY` set (see [Review UI](#review-ui));
+- accept a decision on the reference run. The server refuses one with 403 and logs nothing, whether
+  it comes from the page or is sent by hand;
+- keep anything. Runs and decisions made on the service live only in that instance and are lost
+  when it stops: when it scales to zero after a quiet spell, and on every redeploy;
+- tell reviewers apart. There are no accounts, and a reviewer's name is self-declared;
+- promise exactly one instance at every moment. The service is capped at one, but Cloud Run may
+  briefly exceed the cap, for example during a traffic spike; two instances would not share runs.
+
+### The image
+
+`Dockerfile` builds in three stages on the .NET 10 images for Ubuntu 24.04: it publishes
+`SpecTrace.Web`, gathers the data offline mode needs, and runs the app as the non-root `app` user,
+listening on `$PORT`, with `/health` for health checks. The image holds the published app, whose
+prompts are embedded in `SpecTrace.Pipeline.dll`, `corpus/*.txt`, `cache/`, `runs/reference/`,
+the reference run's metrics file for the verification figures on its overview, and the committed
+reference review log, `experiments/review/{runId}.reviews.jsonl`, placed where the UI reads it. The
+data is owned by root, so the app can write only under `runs/`. `.dockerignore` is an allowlist:
+nothing else reaches the build, and `.env` files and `bin/` and `obj/` output are excluded even
+inside it. The image switches on `SPECTRACE_OFFLINE=1` and `SPECTRACE_PUBLIC_DEMO=1` itself, so the
+image CI tests is configured exactly like the deployed one. A run made in the container records
+`git_sha` as `unknown`, because the build has no `.git`.
+
+To try the image locally, build it from a clean clone, since a working tree with untracked corpus or
+cache files would put them in the image:
+
+```
+docker build --tag spectrace-web .
+docker run --rm --publish 8080:8080 spectrace-web
+```
+
+The `container` job in CI builds the image on every push and pull request and starts it with no key
+and no secret, on a port other than the default. It checks that the image holds no `.env` file and
+no key variable and that the server does not run as root. Then it runs `deploy/smoke-test.sh`
+against the container, checks that the reference review log is unchanged afterwards, and compares
+the RFC 6902 run started through the form with `runs/reference/`, file by file. It pushes nothing
+anywhere.
+
+### Deploy, redeploy and check
+
+The student deploys by hand from Cloud Shell, in a clone of this repository at the commit to deploy;
+no Google credential is ever stored in this repository or in CI:
+
+```
+bash deploy/deploy.sh <deployment project ID> <key project ID> europe-north1
+bash deploy/smoke-test.sh <service URL>
+```
+
+`deploy/deploy.sh` checks that billing is disabled on the key project and enabled on the deployment
+project, and that the reference review is committed. It then enables the Cloud Run, Cloud Build and
+Artifact Registry APIs, grants the build service account `roles/run.builder`, and deploys from
+source with the Dockerfile. Finally it checks that the service configuration holds no environment
+variable and no secret. Running the same command again redeploys. `deploy/smoke-test.sh` needs only
+bash and curl. It makes the same HTTP checks CI makes against the container, and can be run as often
+as needed.
+
+The budget alert is set by hand in the console, on the deployment project: Billing, Budgets & alerts,
+Create budget, scoped to that project, with email alerts to the billing administrators.
+
+### Teardown after the defense
+
+1. Delete the service: `gcloud run services delete spectrace --project <deployment project ID> --region europe-north1`.
+2. Delete the built images: `gcloud artifacts repositories delete cloud-run-source-deploy --project <deployment project ID> --location europe-north1`.
+3. Delete the uploaded sources: list the buckets with `gcloud storage buckets list --project <deployment project ID>`
+   and remove the ones the source deploys created with `gcloud storage rm --recursive gs://<bucket>`.
+4. Delete the deployment project: `gcloud projects delete <deployment project ID>`. Billing on it stops, and Google
+   deletes it for good after 30 days. Then delete its budget under Billing, Budgets & alerts, if it is still listed.
+5. Delete the Gemini API key in AI Studio, or delete the key project.
+
+Steps 1 to 3 are part of step 4. They are listed so that the service can be taken down while the project
+is kept.
+
 ## Layout
 
 ```
@@ -297,6 +409,8 @@ tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline end-to-end r
                                   the review log and the web UI, hosted in-process
 cache/                     committed LLM response cache
 runs/reference/            committed reference run; every other run under runs/ is ignored
+Dockerfile, .dockerignore  the image of the review UI that Cloud Run serves, offline, as a public demo
+deploy/                    deploy.sh, run by hand from Cloud Shell, and smoke-test.sh, run by CI and by hand
 ```
 
 `SpecTrace.Core` must never reference `SpecTrace.Llm`. A test in
@@ -314,6 +428,8 @@ manifest check on its own would pass while the project file declared the depende
 - API keys, when a live call is made, come from the Google Cloud project that has **no** billing
   enabled — separate from the project used for deployment, because enabling billing removes the
   Gemini free tier on that project.
+- The deployed service holds no key: not in the image, not in its configuration, not in Secret
+  Manager. CI builds and tests the image with no key and no secret, and never deploys.
 
 ## Scope
 

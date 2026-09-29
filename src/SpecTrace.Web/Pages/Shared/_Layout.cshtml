@@ -1,3 +1,7 @@
+@inject WebAppHost Host
+@{
+    const string RepositoryUrl = "https://github.com/KaunazDagaz/SpecTrace-dev#readme";
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,6 +16,8 @@
 body { font-family: system-ui, sans-serif; margin: 0; line-height: 1.45; color: #1d1d1d; background: #fcfcfa; }
 header { background: #23303d; color: #fff; padding: 0.6rem 1.5rem; }
 header a { color: #fff; font-weight: bold; text-decoration: none; }
+.demo { background: #fff8c5; border-bottom: 2px solid #b39500; padding: 0.3rem 1.5rem; }
+.demo p { margin: 0.4rem 0; max-width: 76rem; }
 main { padding: 1rem 1.5rem 3rem; max-width: 76rem; }
 table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }
 th, td { border: 1px solid #b8b8b8; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; }
@@ -39,6 +45,18 @@ textarea, input[type=text] { width: 100%; box-sizing: border-box; font: inherit;
 </head>
 <body>
 <header><a href="/">SpecTrace</a> · runs, review and traceability</header>
+@if (Host.PublicDemo)
+{
+<div class="demo" id="demo">
+<p><strong>This is an offline demo.</strong> It replays the model answers recorded in the repository's committed cache and
+never calls a model; there is no API key anywhere in this service. A new document needs a local run with an API key:
+see the <a href="@RepositoryUrl">README</a>.</p>
+<p>The reference run shows the author's own review and is read-only here. To try reviewing, start your own run of a corpus
+document from the <a href="/#new-run">run list</a>. Reviewer names are self-declared: nobody checks them.</p>
+<p><strong>Runs and decisions made here live only in this instance and disappear when it restarts</strong>, which also happens
+when it scales to zero after a quiet spell, and on every redeploy.</p>
+</div>
+}
 <main>
 @RenderBody()
 </main>

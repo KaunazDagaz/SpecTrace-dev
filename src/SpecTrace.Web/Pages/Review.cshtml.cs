@@ -20,6 +20,10 @@ public sealed class ReviewModel : PageModel
 
     public string? Unavailable { get; private set; }
 
+    public bool ReadOnly { get; private set; }
+
+    public string? Decider => ReadOnly ? null : Reviewer;
+
     public Task<IActionResult> OnGetAsync(string key, CancellationToken cancellationToken) =>
         ShowAsync(key, error: null, cancellationToken);
 
@@ -64,6 +68,11 @@ public sealed class ReviewModel : PageModel
             return NotFound();
         }
 
+        if (_catalog.IsReadOnly(key))
+        {
+            return await RefuseReadOnlyAsync(key, cancellationToken);
+        }
+
         if (string.IsNullOrWhiteSpace(author))
         {
             return await ShowAsync(key, "Enter your name at the top of the page before deciding. Nothing was logged.", cancellationToken);
@@ -87,6 +96,10 @@ public sealed class ReviewModel : PageModel
         {
             return await ShowAsync(key, Message(exception), cancellationToken);
         }
+        catch (RunReadOnlyException)
+        {
+            return await RefuseReadOnlyAsync(key, cancellationToken);
+        }
         catch (RunNotAvailableException)
         {
             return await ShowAsync(key, error: null, cancellationToken);
@@ -107,6 +120,11 @@ public sealed class ReviewModel : PageModel
             return NotFound();
         }
 
+        if (_catalog.IsReadOnly(key))
+        {
+            return await RefuseReadOnlyAsync(key, cancellationToken);
+        }
+
         if (string.IsNullOrWhiteSpace(author))
         {
             return await ShowAsync(key, "Enter your name at the top of the page before deciding. Nothing was logged.", cancellationToken);
@@ -121,6 +139,10 @@ public sealed class ReviewModel : PageModel
         catch (Exception exception) when (exception is ReviewRefusedException or FormatException)
         {
             return await ShowAsync(key, Message(exception), cancellationToken);
+        }
+        catch (RunReadOnlyException)
+        {
+            return await RefuseReadOnlyAsync(key, cancellationToken);
         }
         catch (RunNotAvailableException)
         {
@@ -170,6 +192,7 @@ public sealed class ReviewModel : PageModel
         Reviewer = Request.Cookies.TryGetValue(SpecTraceWebApp.ReviewerCookie, out var cookie)
             ? Uri.UnescapeDataString(cookie)
             : null;
+        ReadOnly = _catalog.IsReadOnly(key);
         Error = error;
 
         if (error is not null)
@@ -178,6 +201,18 @@ public sealed class ReviewModel : PageModel
         }
 
         return Page();
+    }
+
+    private async Task<IActionResult> RefuseReadOnlyAsync(string key, CancellationToken cancellationToken)
+    {
+        var result = await ShowAsync(key, RunCatalog.ReadOnlyReason, cancellationToken);
+
+        if (result is PageResult && Unavailable is null)
+        {
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+        }
+
+        return result;
     }
 
     private static string Normalized(string? text) => (text ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal);

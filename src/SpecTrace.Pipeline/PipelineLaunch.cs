@@ -14,11 +14,15 @@ public static class PipelineLaunch
 
     public static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(3);
 
-    public static bool IsOffline(Func<string, string?> environment, bool offlineFlag)
+    public static bool IsOffline(Func<string, string?> environment, bool offlineFlag) =>
+        IsSwitchedOn(environment, OfflineVariable, offlineFlag);
+
+    public static bool IsSwitchedOn(Func<string, string?> environment, string variable, bool flag)
     {
         ArgumentNullException.ThrowIfNull(environment);
+        ArgumentException.ThrowIfNullOrWhiteSpace(variable);
 
-        return offlineFlag || CachingLlmClient.IsOffline(environment(OfflineVariable));
+        return flag || CachingLlmClient.IsOffline(environment(variable));
     }
 
     public static bool HasApiKey(Func<string, string?> environment)

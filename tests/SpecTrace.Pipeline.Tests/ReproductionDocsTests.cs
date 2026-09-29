@@ -31,6 +31,20 @@ public sealed class ReproductionDocsTests
     }
 
     [Fact]
+    public void TheSmokeTestTheReadmeGivesForTheLiveServiceIsTheScriptCiRunsAgainstTheContainer()
+    {
+        const string Script = "bash deploy/smoke-test.sh ";
+
+        Assert.True(File.Exists(Repository.PathTo("deploy", "smoke-test.sh")));
+        Assert.Contains(
+            File.ReadAllLines(Repository.PathTo("README.md")),
+            line => line.Trim() == $"{Script}<service URL>");
+        Assert.Contains(
+            Workflow,
+            line => line.Trim().StartsWith($"{Script}http://localhost:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void TheWorkflowReferencesNoSecret()
     {
         Assert.DoesNotContain(

@@ -1,0 +1,16 @@
+*
+!global.json
+!Directory.Build.props
+!src/SpecTrace.Core/
+!src/SpecTrace.Llm/
+!src/SpecTrace.Pipeline/
+!src/SpecTrace.Web/
+!corpus/*.txt
+!cache/
+!runs/reference/
+!experiments/*.metrics.json
+!experiments/review/*.reviews.jsonl
+**/bin/
+**/obj/
+**/.env
+**/.env.*

@@ -62,3 +62,67 @@ jobs:
 
       - name: Load the committed gold standard; one quote not found exactly once fails the build
         run: dotnet run --project src/SpecTrace.Cli -- score --gold corpus/gold/rfc6902.gold.yaml --document corpus/rfc6902.txt
+
+  container:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Build the image from the Dockerfile that Cloud Run deploys
+        run: docker build --tag spectrace-web:ci .
+
+      - name: Fail if the image holds an .env file or a model key variable
+        run: |
+          found="$(docker run --rm --user root --entrypoint find spectrace-web:ci / -xdev \( -name .env -o -name '.env.*' \) -print)"
+          if [ -n "$found" ]; then echo "$found"; exit 1; fi
+          docker image inspect --format '{{json .Config.Env}}' spectrace-web:ci
+          if docker image inspect --format '{{json .Config.Env}}' spectrace-web:ci | grep -qi gemini; then exit 1; fi
+
+      - name: Start the container with no key, on a port other than the default
+        run: docker run --detach --name spectrace --publish 8123:8123 --env PORT=8123 spectrace-web:ci
+
+      - name: Fail if the server runs as root
+        run: |
+          uid="$(docker exec spectrace id -u)"
+          echo "The server runs as uid $uid."
+          test "$uid" != 0
+
+      - name: Record the reference review log before the smoke test
+        run: docker exec spectrace sh -c 'sha256sum runs/web/reviews/reference.jsonl 2>/dev/null || echo absent' | tee "$RUNNER_TEMP/log-before"
+
+      - name: Run the smoke test the README gives for the live service
+        shell: bash
+        run: |
+          set +e
+          bash deploy/smoke-test.sh http://localhost:8123 > "$RUNNER_TEMP/smoke.txt" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/smoke.txt"
+          { echo '```'; cat "$RUNNER_TEMP/smoke.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Fail if the smoke test changed the reference review log
+        run: |
+          docker exec spectrace sh -c 'sha256sum runs/web/reviews/reference.jsonl 2>/dev/null || echo absent' | tee "$RUNNER_TEMP/log-after"
+          diff "$RUNNER_TEMP/log-before" "$RUNNER_TEMP/log-after"
+
+      - name: Compare the RFC 6902 run started through the form with runs/reference, byte for byte
+        shell: bash
+        run: |
+          run_id="$(sed -n 's/^ *"run_id": *"\([^"]*\)".*$/\1/p' runs/reference/manifest.json)"
+          docker cp "spectrace:/srv/spectrace/runs/$run_id" "$RUNNER_TEMP/web-run"
+          diff <(ls -A runs/reference) <(ls -A "$RUNNER_TEMP/web-run")
+          mask='s/"\(started_at\|git_sha\)": "[^"]*"/"\1": "<varies between runs>"/'
+          for file in $(ls -A runs/reference); do
+            if [ "$file" = manifest.json ]; then
+              diff <(sed "$mask" runs/reference/manifest.json) <(sed "$mask" "$RUNNER_TEMP/web-run/manifest.json")
+            else
+              cmp "runs/reference/$file" "$RUNNER_TEMP/web-run/$file"
+            fi
+          done
+          echo "Every file of run $run_id in the container matches runs/reference/; manifest.json differs at most in started_at and git_sha."
+
+      - name: Show the container log
+        if: always()
+        run: docker logs spectrace || true
