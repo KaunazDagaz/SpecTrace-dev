@@ -48,7 +48,7 @@ Milestone M1 (vertical slice) is accepted and M2 is in progress. What exists tod
   UI can start a run from an uploaded plain-text specification.
 - the container image of the review UI and its deployment to Cloud Run as a public, offline demo
   with no key anywhere (see [Deployment](#deployment)). CI builds the image and smoke-tests it on
-  every push; the live URL is recorded under Deployment once the service is deployed.
+  every push. It runs at https://spectrace-5zrm6uxcja-lz.a.run.app.
 
 The gold standard itself is annotated by hand.
 
@@ -297,9 +297,9 @@ holds no API key and never calls a model.
 
 | | |
 |---|---|
-| Live URL | *pending: recorded here once the service is deployed* |
-| Deployment project | *pending*. Billing enabled, used only for Cloud Run, Cloud Build and Artifact Registry. Budget alert: *pending*, with emails at 50%, 90% and 100% of actual spend |
-| Key project | *pending*. No billing, holds only the Gemini API key made in AI Studio, and is never deployed to |
+| Live URL | https://spectrace-5zrm6uxcja-lz.a.run.app, also served at https://spectrace-38594812553.europe-north1.run.app |
+| Deployment project | `spectrace-deploy`. Billing enabled, used only for Cloud Run, Cloud Build and Artifact Registry. Budget alert: *pending*, with emails at 50%, 90% and 100% of actual spend |
+| Key project | `gen-lang-client-0785466808`. No billing, holds only the Gemini API key made in AI Studio, and is never deployed to |
 | Region | `europe-north1` (Hamina, Finland): the Tier 1 Cloud Run region nearest to Lithuania, marked low CO2 |
 | Service | `spectrace`: public without sign-in, 0 to 1 instances, request-based billing, no environment variable and no secret in its configuration |
 
@@ -308,6 +308,11 @@ Gemini free tier on that project, and every call then bills from the first token
 billing, so the service lives in a project that holds no key, and the key lives in a project that
 has no billing. `deploy/deploy.sh` stops before deploying anything if billing is enabled on the key
 project.
+
+Deployed on 29 September 2026 as revision `spectrace-00001-zzp`, carrying the committed reference
+review of 5 decisions. `deploy/deploy.sh` confirmed that billing is disabled on the key project and
+enabled on the deployment project, and that the service configuration holds no environment variable
+and no secret. `deploy/smoke-test.sh` against the live URL then passed all 18 checks.
 
 ### What the public service does, and what it does not
 
@@ -374,22 +379,29 @@ bash deploy/smoke-test.sh <service URL>
 project, and that the reference review is committed. It then enables the Cloud Run, Cloud Build and
 Artifact Registry APIs, grants the build service account `roles/run.builder`, and deploys from
 source with the Dockerfile. Finally it checks that the service configuration holds no environment
-variable and no secret. Running the same command again redeploys. `deploy/smoke-test.sh` needs only
-bash and curl. It makes the same HTTP checks CI makes against the container, and can be run as often
-as needed.
+variable and no secret. Running the same command again redeploys:
+`bash deploy/deploy.sh spectrace-deploy gen-lang-client-0785466808 europe-north1`.
+`deploy/smoke-test.sh` needs only bash and curl. It makes the same HTTP checks CI makes against the
+container, and can be run as often as needed.
+
+On a new project the first build can fail with `PERMISSION_DENIED` on the source bucket, because the
+build service account's new `roles/run.builder` grant has not applied yet. This happened on the
+first deploy of `spectrace-deploy`. Wait a few minutes and run the same command again; it is safe to
+repeat.
 
 The budget alert is set by hand in the console, on the deployment project: Billing, Budgets & alerts,
 Create budget, scoped to that project, with email alerts to the billing administrators.
 
 ### Teardown after the defense
 
-1. Delete the service: `gcloud run services delete spectrace --project <deployment project ID> --region europe-north1`.
-2. Delete the built images: `gcloud artifacts repositories delete cloud-run-source-deploy --project <deployment project ID> --location europe-north1`.
-3. Delete the uploaded sources: list the buckets with `gcloud storage buckets list --project <deployment project ID>`
-   and remove the ones the source deploys created with `gcloud storage rm --recursive gs://<bucket>`.
-4. Delete the deployment project: `gcloud projects delete <deployment project ID>`. Billing on it stops, and Google
+1. Delete the service: `gcloud run services delete spectrace --project spectrace-deploy --region europe-north1`.
+2. Delete the built images: `gcloud artifacts repositories delete cloud-run-source-deploy --project spectrace-deploy --location europe-north1`.
+3. Delete the uploaded sources: `gcloud storage rm --recursive gs://run-sources-spectrace-deploy-europe-north1`.
+   Then list the buckets that remain with `gcloud storage buckets list --project spectrace-deploy`, and remove any
+   other bucket the builds created the same way.
+4. Delete the deployment project: `gcloud projects delete spectrace-deploy`. Billing on it stops, and Google
    deletes it for good after 30 days. Then delete its budget under Billing, Budgets & alerts, if it is still listed.
-5. Delete the Gemini API key in AI Studio, or delete the key project.
+5. Delete the Gemini API key in AI Studio, or delete the key project, `gen-lang-client-0785466808`.
 
 Steps 1 to 3 are part of step 4. They are listed so that the service can be taken down while the project
 is kept.
