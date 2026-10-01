@@ -31,9 +31,11 @@ so only a document whose calls are in the cache can run: here, the corpus docume
 else
 {
 <div class="warning" id="mode">
-<p><strong>This server runs live.</strong> A call not in the cache is sent to Gemini's free tier, where inputs may be used to
-improve Google's models. Upload public specifications only. A live run makes one request for extraction and one per
-testable requirement, at most ten a minute, so it can take several minutes.</p>
+<p><strong>This server runs live.</strong> A call not in the cache is sent to the Gemini API through the key in this
+server's environment. On unpaid quota the Gemini API terms let Google use it to improve its products, unless the key's
+developer is in the European Economic Area, Switzerland or the United Kingdom. Upload public specifications only. A live
+run makes one request for extraction and one per testable requirement, at most ten a minute, so it can take several
+minutes.</p>
 @if (!Model.Host.HasApiKey)
 {
 <p><strong>No API key is set</strong> in the server's environment, so no run can start here: a live run needs
