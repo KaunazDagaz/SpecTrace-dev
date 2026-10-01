@@ -203,6 +203,21 @@ dotnet run --project src/SpecTrace.Web
 
 # offline: every run replays from cache/, no key is read and nothing is sent to the model
 dotnet run --project src/SpecTrace.Web -- --offline
+
+# the public demo as the image runs it, offline: the reference run is read-only and every page
+# carries the demo banner
+dotnet run --project src/SpecTrace.Web -- --offline --public-demo
+```
+
+A fresh clone shows the reference run with no decisions: the UI reads
+`runs/web/reviews/reference.jsonl`, which git ignores, and the committed review of the reference run
+is `experiments/review/rfc6902-3ff2234db6aa.reviews.jsonl`. To see that review in the local UI, copy it
+into place before starting the UI; the same two commands work in bash and PowerShell. Decisions made
+locally afterwards are appended to the copy, never to the committed file.
+
+```
+mkdir -p runs/web/reviews
+cp experiments/review/rfc6902-3ff2234db6aa.reviews.jsonl runs/web/reviews/reference.jsonl
 ```
 
 `SPECTRACE_OFFLINE=1` works the same way as `--offline`. `--urls http://localhost:5080` changes the
