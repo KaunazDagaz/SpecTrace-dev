@@ -303,8 +303,10 @@ Known limitations of the review UI:
 - The run list, review and `export` cover the reference run and the runs started from the UI, not
   runs written by `spectrace run`: the UI knows each of its runs' source documents and checks every
   span against it before offering the run for review.
-- In live mode, an uploaded document is sent to a free tier that may use it to improve the provider's
-  models. The form asks for public specifications only; nothing else enforces it.
+- In live mode, an uploaded document is sent to the Gemini API through the key in the server's
+  environment. On unpaid quota, the Gemini API terms let Google use it to improve its products unless
+  the key's developer is in the European Economic Area, Switzerland or the United Kingdom. The form
+  asks for public specifications only; nothing else enforces it.
 
 ## Deployment
 
@@ -316,7 +318,7 @@ Manager. The key is never in this repository, the image or CI.
 | | |
 |---|---|
 | Live URL | https://spectrace-5zrm6uxcja-lz.a.run.app, also served at https://spectrace-38594812553.europe-north1.run.app |
-| Deployment project | `spectrace-deploy`. Billing enabled, used only for Cloud Run, Cloud Build, Artifact Registry and Secret Manager. Budget alert: *pending*, with emails at 50%, 90% and 100% of actual spend |
+| Deployment project | `spectrace-deploy`. Billing enabled, used only for Cloud Run, Cloud Build, Artifact Registry and Secret Manager. Budget alert: set, as the student confirmed on 1 October 2026; its amount and thresholds are not recorded here |
 | Key project | `gen-lang-client-0785466808`. No billing; the Gemini API key was made here in AI Studio, so every call on it is on this project's free tier. Never deployed to |
 | Region | `europe-north1` (Hamina, Finland): the Tier 1 Cloud Run region nearest to Lithuania, marked low CO2 |
 | Service | `spectrace`: public without sign-in, 0 to 1 instances, instance-based billing so a live run keeps its CPU after the upload request returns. Its configuration holds exactly `SPECTRACE_OFFLINE=0` and `GEMINI_API_KEY` as a reference to a pinned version of the secret `gemini-api-key` |
@@ -334,7 +336,18 @@ First deployed offline on 29 September 2026 as revision `spectrace-00001-zzp`, c
 reference review of 5 decisions. `deploy/deploy.sh` confirmed that billing is disabled on the key
 project and enabled on the deployment project, and that the service configuration held no
 environment variable and no secret. `deploy/smoke-test.sh` against the live URL then passed all 18
-checks. The switch to live runs is *pending its deploy*; this paragraph records it when it is made.
+checks. The service switched to live runs later the same day, once the key had been stored again
+without the terminal's paste escape codes (PR #17). On 1 October 2026, `deploy/smoke-test.sh --live`
+against the live URL passed all 17 checks.
+
+The service runs on the key project's unpaid quota. The
+[Gemini API Additional Terms](https://ai.google.dev/gemini-api/terms) allow only Paid Services when an
+API client is available to users in the European Economic Area, Switzerland or the United Kingdom, so
+on their text the service runs against that restriction. The student decided on 1 October 2026 to keep
+it live, to show the system working on new documents, and accepts that risk: see the
+[decision of 1 October 2026](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/research/decisions.md#1-october-2026--the-public-demo-stays-live-on-unpaid-quota-against-the-gemini-api-use-restriction).
+The kill switch under [Deploy, redeploy and check](#deploy-redeploy-and-check) turns it offline without
+a rebuild.
 
 ### What the public service does, and what it does not
 
@@ -359,8 +372,10 @@ It does not:
 - tell reviewers or uploaders apart. There are no accounts, and a reviewer's name is self-declared;
 - protect the daily quota or the uploads. Every visitor shares the key's one daily request quota,
   and one large document can use about a quarter of it. Anything uploaded is sent to Gemini's free
-  tier, where inputs may be used to improve Google's models. The banner and the form ask for public
-  specifications only; nothing enforces it;
+  tier through the author's key. The author is in the European Economic Area, so under the Gemini API
+  terms Google does not use it to improve its products, and logs it for a limited period
+  ([privacy and safety](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/docs/privacy-safety.md)).
+  The banner and the form ask for public specifications only; nothing enforces it;
 - promise exactly one instance at every moment. The service is capped at one, but Cloud Run may
   briefly exceed the cap, for example during a traffic spike; two instances would not share runs.
 
@@ -456,7 +471,9 @@ gcloud run services update spectrace --project spectrace-deploy --region europe-
 ```
 
 The image's own `SPECTRACE_OFFLINE=1` then applies again. Deleting or restricting the key in AI Studio
-stops live runs as well, with an error on the run page.
+stops live runs as well, with an error on the run page. Do not run `deploy/deploy.sh` while the service
+is meant to stay offline: it always deploys live, setting `SPECTRACE_OFFLINE=0` and the key's secret
+reference.
 
 On a new project the first build can fail with `PERMISSION_DENIED` on the source bucket, and the
 first revision with the key can fail on the secret, because a new grant takes a few minutes to
@@ -496,7 +513,7 @@ tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline end-to-end r
                                   the review log and the web UI, hosted in-process
 cache/                     committed LLM response cache
 runs/reference/            committed reference run; every other run under runs/ is ignored
-Dockerfile, .dockerignore  the image of the review UI that Cloud Run serves, offline, as a public demo
+Dockerfile, .dockerignore  the image of the review UI, offline by default; Cloud Run serves it live as the public demo
 deploy/                    deploy.sh, run by hand from Cloud Shell, and smoke-test.sh, run by CI and by hand
 ```
 

@@ -332,6 +332,9 @@ public sealed class WebRunTests
         var livePage = WebUtility.HtmlDecode(await live.GetStringAsync("/"));
 
         Assert.Contains("This server runs live.", livePage, StringComparison.Ordinal);
+        Assert.Contains("On unpaid quota the Gemini API terms let Google use it to improve its products", livePage, StringComparison.Ordinal);
+        Assert.Contains("developer is in the European Economic Area, Switzerland or the United Kingdom", livePage, StringComparison.Ordinal);
+        Assert.DoesNotContain("may be used to improve", livePage, StringComparison.Ordinal);
         Assert.Contains("No API key is set", livePage, StringComparison.Ordinal);
         Assert.DoesNotContain("This server runs offline.", livePage, StringComparison.Ordinal);
     }

@@ -254,6 +254,9 @@ public sealed partial class WebDemoTests
 
                 Assert.Contains("This is a public demo that calls a model.", page, StringComparison.Ordinal);
                 Assert.Contains("sent to Google's Gemini API, on its free", page, StringComparison.Ordinal);
+                Assert.Contains("The author is in the European Economic Area, so under the Gemini API terms", page, StringComparison.Ordinal);
+                Assert.Contains("Google does not use these inputs to improve its products", page, StringComparison.Ordinal);
+                Assert.DoesNotContain("may be used to improve", page, StringComparison.Ordinal);
                 Assert.Contains("specifications only", page, StringComparison.Ordinal);
                 Assert.Contains("Every visitor shares one daily request", page, StringComparison.Ordinal);
                 Assert.Contains("Runs and decisions made here live only in this instance and disappear when it restarts", page, StringComparison.Ordinal);
