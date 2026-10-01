@@ -12,14 +12,15 @@ This file governs work in `spectrace-dev`. The authoritative documents live in t
 
 Read, in this order:
 
-1. `spectrace-docs/spec/tor.md` — the frozen, numbered requirements. This is *what* to build.
-2. `spectrace-docs/blueprint.md` §9 — the seven non-negotiable principles. Repeated below, but read them at the source too.
-3. `spectrace-docs/research/implementation-plan.md` §12 — the current milestone and its tasks.
+1. `SpecTrace-docs/spec/TOR.md` — the frozen, numbered requirements. This is *what* to build.
+2. `SpecTrace-docs/BLUEPRINT.md` §9 — the seven non-negotiable principles. Repeated below, but read them at the source too.
+3. `SpecTrace-docs/research/IMPLEMENTATION_PLAN.md` §12 — the current milestone and its tasks.
 4. The Linear card for the specific task you were given.
+5. The `README.md` of this repository — every command, page and folder, which this file does not repeat.
 
 Then, before writing any code, state: which files you read, your plan, and how you will check the result. If required context or access is missing, say so and stop — do not start implementing around a gap.
 
-**Precedence when documents disagree:** `blueprint.md` → `tor.md` → `implementation-plan.md`. The implementation plan is engineering reference, not authority; it may be refined as work reveals better approaches, provided every TOR requirement still holds.
+**Precedence when documents disagree:** `BLUEPRINT.md` → `TOR.md` → `IMPLEMENTATION_PLAN.md`. The implementation plan is engineering reference, not authority; it may be refined as work reveals better approaches, provided every TOR requirement still holds.
 
 ---
 
@@ -45,7 +46,8 @@ These hold regardless of model, document, or developer. They are the project's r
 - Temperature is 0 everywhere.
 - No fuzzy quote matching in the default path. A `--fuzzy` flag may exist for error analysis; it defaults to off and its results never count as verified.
 - A test case cannot exist without at least one requirement ID. Enforce by type, not by convention.
-- Nothing in the output claims completeness. Wording matters here as much as logic.
+- Nothing in the output claims completeness, and every sentence a page or a command prints about what the
+  system does is pinned by a test. Wording matters here as much as logic.
 
 ---
 
@@ -73,91 +75,28 @@ Smoke:    bash deploy/smoke-test.sh <url> [--live]
 Deploy:   bash deploy/deploy.sh <deployment project ID> <key project ID> europe-north1
 ```
 
-Everything above works today; `Deploy` is the student's alone, as described below. `Score` accepts the run ID of any headline row over the document the
-gold file annotates, replays it offline and adds the quality fields to its metrics file.
-`run --arm baseline` sends the one naive prompt in
-`Prompts/baseline.user.md` and scores the answer with the same verifier. `score --claims` scores
-an externally produced answer, such as a chat transcript, through the same parser and verifier.
-`score --headline` always replays from `cache/`, never calls the provider, and rewrites
-`experiments/headline.md`, every metrics file it names and, with `--gold`, the quality reports
-`experiments/{documentId}.quality.md` and `experiments/chunking-decision.md`; CI runs the command written in that
-file and fails if anything under `experiments/` changes. Run it after anything that changes a
-figure, and commit the result.
+Everything above works today; `Deploy` is the student's alone. The README describes what each command
+writes and every page and folder; this file keeps only the rules:
 
-`score --worksheet` writes the annotation worksheet: every sentence of the de-paginated text that
-carries an uppercase BCP 14 keyword, found by a keyword scan and never by a model, with every
-annotator field empty. It never writes over an existing file. `score --gold` without `--run`
-checks a gold file and loads it only if it names the frozen rules commit recorded in
-`AnnotationRules.FrozenCommit`, every scanned sentence is decided, every value is allowed, and
-every quote is found exactly once through the existing resolver, within its section when the
-entry names one; it lists every problem with its line. CI runs the `Gold` command above.
-
-`run` extracts, verifies, generates test cases for the requirements the model classified
-testable, and writes `manifest.json`, `requirements.json`, `rejected-quotes.json`,
-`decisions.json`, `test-cases.json`, `matrix.json` and `matrix.html` under `runs/{runId}/`, or
-under `--out`. `--offline` and `SPECTRACE_OFFLINE=1` are equivalent: the run replays from
-`cache/`, needs no key, and a cache miss is an error that names the missing request, never a
-network call. Use the flag in anything a reader types, because it works in every shell.
-`extract --document <path>` still does extraction and verification only.
-
-As of SPEC-5, `runs/reference/` holds the committed reference run.
-`tests/SpecTrace.Pipeline.Tests/OfflineEndToEndTests.cs` regenerates it offline, with an HTTP
-handler that refuses every request, and compares every file byte for byte. The only exclusions
-are `started_at` and `git_sha` in `manifest.json`. Do not add to that list to get a test
-passing. CI runs the README `Reproduce` command verbatim on ubuntu-latest and windows-latest;
-`ReproductionDocsTests` fails if the README and `ci.yml` disagree. When the output is meant to
-change, follow README "Changing the reference run on purpose": record any new cache entries
-with one online run to `runs/{runId}/`, then rewrite `runs/reference/` with the `Reproduce`
-command and commit that diff, with the reason, in the PR. Never edit `runs/reference/` by hand.
-
-A live call needs `GEMINI_API_KEY` in the environment — the Windows user environment or the
-shell, never a file in this repository, `.env` included. `tests/SpecTrace.Llm.Tests` holds one
-live check that skips itself when the key is absent, so CI stays keyless. When the key is
-present, every `dotnet test` spends one real request from the daily quota on that check.
-
-As of SPEC-13, `src/SpecTrace.Web` serves the review UI at http://localhost:5000: a run list with
-a new-run form, a run overview that also shows a run in progress, review, and the reviewed
-matrix. Start it from the repository root. A review decision is one JSON line appended to
-`runs/web/reviews/{runKey}.jsonl`, where the run key is `reference` or a run ID; earlier lines
-are never changed, and the latest decision per case or item wins. The reviewed matrix is computed
-on each request from the run's files plus that log, so a decision never rewrites any file the
-pipeline produced. The log is not kept in `runs/{runId}/` because the offline end-to-end test
-compares the file list of `runs/reference/`. An upload identical to a `corpus/*.txt` file runs as
-that corpus document; any other upload is copied to `runs/web/uploads/`, and its cache entries go
-to `runs/web/cache/`, both ignored by git. `export --run <key>` writes the reviewed matrix as
-Markdown and CSV through the renderer the matrix page uses; `score --reviews <log>` counts cases
-accepted, edited and rejected by their latest decision.
-
-The review log is the evidence that a person made each decision, and it is append-only, so a
-stray decision can never be removed. An agent never makes review decisions on the reference run;
-the student does. No test writes under `runs/reference/`: review tests work on a temporary copy
-of a run, and run tests use a temporary runs directory.
-
-As of SPEC-14, the `Dockerfile` builds the review UI as the public demo Cloud Run serves. The image
-sets `SPECTRACE_PUBLIC_DEMO=1` and, by default, `SPECTRACE_OFFLINE=1`. The demo makes the reference
-run read-only on the server, puts a banner on every page saying whether the server runs offline or
-live, and refuses to start live without a key. The image carries the committed reference review log,
-`experiments/review/{runId}.reviews.jsonl`, at `runs/web/reviews/reference.jsonl`. The `container`
-CI job builds the image, starts it offline with no key, runs `deploy/smoke-test.sh` against it, and
-compares the RFC 6902 run started through the form with `runs/reference/`. Since the scope change of
-29 September 2026, the deployed service runs new documents live: `deploy/deploy.sh` sets
-`SPECTRACE_OFFLINE=0` and `GEMINI_API_KEY` as a reference to a pinned version of the Secret Manager
-secret `gemini-api-key` in the deployment project, and the student runs
-`deploy/smoke-test.sh <url> --live` against the live URL. The student deploys from Cloud Shell and
-creates the secret. An agent never deploys, never runs `gcloud` against the student's projects, and
-never asks for, receives or stores a Google credential, a service-account key or the Gemini key. The
-key reaches the service only through that secret reference: never put a key, a build argument for
-one, or a plain variable holding one in the image, the service configuration, this repository or
-CI. `.gitattributes` keeps `*.sh`, `Dockerfile`, `.dockerignore` and `.gcloudignore` LF, because bash
-fails on CRLF.
-
-`corpus/rfc6902.txt` is in the repository as of SPEC-2. `.gitattributes` marks `corpus/**` as
-`-text` so git performs no end-of-line conversion on it: the file is LF on every platform, and
-the character offsets the offset map and section index are tested against are identical on
-Windows and on CI. Do not remove that rule, and do not re-save the corpus with CRLF. As of
-SPEC-5 the same rule covers `cache/**` and `runs/reference/**`, because Git for Windows would
-otherwise convert them to CRLF on checkout and break the byte comparison. The pipeline writes
-LF on every platform.
+- Run `score --headline` after anything that changes a figure, and commit the result. It always replays
+  from `cache/`, and CI fails if anything under `experiments/` changes.
+- In anything a reader types, use `--offline` rather than `SPECTRACE_OFFLINE=1`: the flag works in every
+  shell.
+- `runs/reference/` changes only through README "Changing the reference run on purpose", never by hand.
+  The byte comparison excludes only `started_at` and `git_sha` in `manifest.json`; do not add to that list
+  to get a test passing.
+- A live call needs `GEMINI_API_KEY` in the environment, never in a file in this repository, `.env`
+  included. Run `dotnet test` with `GEMINI_API_KEY` removed from the environment unless the task is to
+  exercise the live path: when the key is present, the live check spends one real request.
+- The review log is append-only evidence that a person decided. An agent never makes review decisions on
+  the reference run; the student does. No test writes under `runs/reference/`.
+- An agent never deploys, never runs `gcloud` against the student's projects, and never asks for,
+  receives or stores a Google credential, a service-account key or the Gemini key. The key reaches the
+  deployed service only as the Secret Manager reference that `deploy/deploy.sh` sets: never in the image,
+  a build argument, a plain variable, this repository or CI.
+- `.gitattributes` keeps `corpus/**`, `cache/**`, `runs/reference/**` and the committed experiment files
+  `-text`, and `*.sh`, `Dockerfile`, `.dockerignore` and `.gcloudignore` LF. Do not remove those rules,
+  and do not re-save those files with CRLF. The pipeline writes LF on every platform.
 
 ---
 
@@ -211,10 +150,13 @@ These run in CI against the committed cache. Do not merge with any of them red, 
 ## Workflow
 
 - One Linear issue → one branch → one PR. Branch names carry the issue ID (`spec-2-offset-map`) so Linear links them automatically.
+  When one change needs a PR in each repository, the two branches get different names, and each PR links the other.
 - Work only within the task's stated boundaries. Do not expand the product, and never weaken an acceptance criterion to get a test passing.
 - Hit a blocker: stop and state the fact, the cause, and the options. Do not guess past it or silently pick a direction.
-- Every PR states which acceptance criteria are met and how each one was checked.
-- Never report a check as done that you did not actually run.
+- Every PR description states which acceptance criteria are met and how each one was checked. A PR with an
+  empty description is not ready to merge.
+- Never report a check as done that you did not actually run. This includes a command handed to the student:
+  one the agent has not run in the same kind of environment is labelled untested when it is handed over.
 - Replacing a real integration with a stub is acceptable only as an explicitly agreed interim step, stated in the PR.
 - A new idea does not interrupt the current task — write it to `spectrace-docs` and let it be decided later. A blocking defect is the opposite: fix it or renegotiate the boundary, never hide it.
 - Do not start a future milestone's tasks before the current milestone is accepted.
@@ -247,6 +189,9 @@ These run in CI against the committed cache. Do not merge with any of them red, 
 - `cache/` is committed on purpose. It is reproducibility evidence, not clutter — do not add it to `.gitignore`.
 - `runs/` is gitignored except the single reference run.
 - The gold standard in corpus/gold/ and the chat transcripts in experiments/a0/ are human-authored. The agent may load and validate them, but never creates, completes or edits them.
+  The same holds for every judgment an acceptance criterion gives to a person: a verdict in the error analysis,
+  a sampled inspection, a review decision. The agent prepares the material, and the person enters the judgment;
+  if the person asks the agent to enter it, the file says so.
 
 ---
 
@@ -257,6 +202,8 @@ A claim about an API's behaviour or a library's capability is not verification u
 - the .NET SDK version actually installed (`dotnet --list-sdks`)
 - Gemini endpoint shape, request format, JSON-mode field names, and current rate limits — these have changed recently and are no longer published as one fixed number
 - the section-header regex, against the real corpus file — RFC formatting varies, and a wrong regex silently mislabels every section
+- the provider's terms of use, before anything lets someone other than the student reach the model — the Gemini API
+  Additional Terms restrict unpaid use by region and set what happens to submitted data
 
 If something in this file or the implementation plan contradicts what you observe when you actually run it, the observation wins. Say so rather than coding around it.
 
@@ -264,6 +211,6 @@ If something in this file or the implementation plan contradicts what you observ
 
 ## Out of scope
 
-See `spectrace-docs/spec/tor.md` §2.2–2.3. Do not build anything listed there, however small it looks — scope discipline is graded on this project.
+See `SpecTrace-docs/spec/TOR.md` §2.2–2.3. Do not build anything listed there, however small it looks — scope discipline is graded on this project.
 
 The tempting ones, repeated: no database, no authentication, no SPA or client-side build step, no PDF or OCR input, no executing the generated test cases, no retrieval or embeddings, no abstraction with a single implementation, no requirement diffing across versions, no GitHub or Linear access from the system itself.
