@@ -4,6 +4,11 @@ Extract normative requirements from a technical specification, anchor each one t
 of the source text, generate test cases traceable to those requirements, and expose coverage
 gaps — with every claim in the output checkable by code rather than asserted by a model.
 
+Whether the proposed test cases help is measured by how many a reviewer keeps. On the reference run, 11 of 23 were
+accepted as proposed, 9 edited and 3 rejected ([`experiments/review/`](experiments/review/)). There was one reviewer,
+who is also the author, on one document, and 21 of those decisions were made with the coding agent's opinion on each
+case, at the reviewer's request ([`experiments/error-analysis.md`](experiments/error-analysis.md) §9).
+
 This repository holds the implementation. The concept, the agreed requirements and the
 engineering plan live in a separate repository:
 

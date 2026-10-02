@@ -265,10 +265,48 @@ transcripts' front matter and [headline.md](headline.md).
 - The baseline moves the other way: 81.3% not located on RFC 6902 against 9.1% on RFC 10050. That points to
   RFC 6902's many quoted words, which the baseline rewrote, rather than to familiarity with the text.
 
-## 9. Test cases rejected on review
+## 9. Test cases on review
 
-The implementation plan §8.6 also asks which test cases reviewers reject. No review has been recorded yet:
-review lands with SPEC-13. There is nothing to analyse here until then.
+The implementation plan §8.6 also asks which test cases reviewers reject, and what the rejected cases share. The
+student reviewed every case and every queue item of the reference run. The log is
+[`review/rfc6902-3ff2234db6aa.reviews.jsonl`](review/rfc6902-3ff2234db6aa.reviews.jsonl) (32 lines), and the counts
+are in [`review/rfc6902-3ff2234db6aa.review-outcomes.md`](review/rfc6902-3ff2234db6aa.review-outcomes.md):
+
+| Latest decision | Test cases | Share |
+|---|---:|---:|
+| Accepted as proposed | 11 | 47.8% |
+| Edited | 9 | 39.1% |
+| Rejected | 3 | 13.0% |
+
+All 4 decision-queue items were marked testable.
+
+**How the decisions were made.**
+- The 2 cases decided on 28 September 2026 are the student's alone: TC-399ed7-02 accepted, TC-399ed7-01 rejected.
+- On 2 October 2026 the student asked the agent for an opinion on each of the other 21 cases and the 3 open queue
+  items: accept, edit or reject, and the text of each edit. The student then entered every decision in the review UI.
+- By its latest decision, each of those 24 equals the agent's opinion. 8 of the 9 edits use the agent's text in every
+  field; the ninth, TC-07e6ff-01, keeps its original title.
+- So the counts measure how often the student, with the agent's opinion in front of them, kept the model's
+  proposals. They are not an independent human judgment.
+
+*The reasons below are the agent's, given at the student's request before the student decided.*
+
+- **Rejected.** TC-07e6ff-03 and TC-3d4323-03 put the same member in one object twice. RFC 8259 §4 says the behaviour
+  of software receiving such an object "is unpredictable", so these cases test the JSON parser, not RFC 6902. The
+  third rejection, TC-399ed7-01, is the student's own of 28 September, and the log records no reason for it.
+- **Edited.** The generator sees a quote and its section number and nothing else (Implementation Plan §7.2), and
+  every edit traces to that:
+  - 7 of the 9 name the operation the requirement belongs to: add, move, copy or test. Without it, a missing member
+    can be legal for another operation.
+  - 4 replace an expected result that was not an observable outcome. TC-07e6ff-01 called an incomplete operation
+    valid "regarding the 'op' member"; TC-c2cc75-01 and TC-cd65df-01 restated the input; TC-7fc509-01 said the
+    operation "conveys the value".
+  - TC-07e6ff-02's edit isolates the rule: its input, `{}`, lacked `path` as well as `op`.
+- **Accepted.** The other 10 cases are correct for their requirement and can be implemented as written.
+- **What no case did.** None invented an error code, field or limit its quote does not state, so the generation
+  prompt's rule 2 held throughout.
+- **The queue.** Marking `DQ-rfc6902-5a829e` testable keeps §4.1's requirement a gap, because "testable" is logged
+  but generates no case.
 
 ## 10. Conclusions
 
