@@ -9,7 +9,7 @@ engineering plan live in a separate repository:
 
 | Document | What it is |
 |---|---|
-| [SpecTrace-docs](https://github.com/KaunazDagaz/SpecTrace-docs) | The companion repository: concept, decisions, history |
+| [SpecTrace-docs](https://github.com/KaunazDagaz/SpecTrace-docs) | The companion repository, and the place to start: what was built and why, what confirms it, where it stops, and the decisions behind it |
 | [`BLUEPRINT.md`](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/BLUEPRINT.md) | Approved concept and the seven non-negotiable principles (§9). Authoritative |
 | [`spec/TOR.md`](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/spec/TOR.md) | Frozen, numbered requirements. What gets built |
 | [`research/IMPLEMENTATION_PLAN.md`](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/research/IMPLEMENTATION_PLAN.md) | Engineering detail, prompts, milestones. Reference, not authority |
@@ -19,7 +19,11 @@ versions. `AGENTS.md` and `CLAUDE.md` here describe how to work in the code.
 
 ## Status
 
-Milestone M1 (vertical slice) is accepted and M2 is in progress. What exists today:
+Milestones M1 and M2 are accepted, on 26 September and 1 October 2026
+([M1](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/acceptance/m1-acceptance.md),
+[M2](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/acceptance/m2-acceptance.md)). M3, the version shown at
+the defense, is in progress. What was built and why, what confirms it and where it stops are in the
+[SpecTrace-docs README](https://github.com/KaunazDagaz/SpecTrace-docs#readme). What exists today:
 
 - the corpus (`corpus/rfc6902.txt`), the whitespace normalisation with its offset map, and the
   section index;
