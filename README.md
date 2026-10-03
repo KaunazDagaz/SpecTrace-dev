@@ -26,8 +26,11 @@ versions. `AGENTS.md` and `CLAUDE.md` here describe how to work in the code.
 
 Milestones M1 and M2 are accepted, on 26 September and 1 October 2026
 ([M1](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/acceptance/m1-acceptance.md),
-[M2](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/acceptance/m2-acceptance.md)). M3, the version shown at
-the defense, is in progress. What was built and why, what confirms it and where it stops are in the
+[M2](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/acceptance/m2-acceptance.md)), and tagged
+[`m1-accepted`](https://github.com/KaunazDagaz/SpecTrace-dev/tree/m1-accepted) and
+[`m2-accepted`](https://github.com/KaunazDagaz/SpecTrace-dev/tree/m2-accepted). M3, the version shown at the defense,
+was completed on 3 October 2026 and is tagged [`defense`](https://github.com/KaunazDagaz/SpecTrace-dev/tree/defense).
+What was built and why, what confirms it and where it stops are in the
 [SpecTrace-docs README](https://github.com/KaunazDagaz/SpecTrace-docs#readme). What exists today:
 
 - the corpus (`corpus/rfc6902.txt`), the whitespace normalisation with its offset map, and the
@@ -347,7 +350,8 @@ project and enabled on the deployment project, and that the service configuratio
 environment variable and no secret. `deploy/smoke-test.sh` against the live URL then passed all 18
 checks. The service switched to live runs later the same day, once the key had been stored again
 without the terminal's paste escape codes (PR #17). On 1 October 2026, `deploy/smoke-test.sh --live`
-against the live URL passed all 17 checks.
+against the live URL passed all 17 checks. Redeployed on 3 October 2026 from `43d8e63`, which carries the full
+reference review of 32 decisions (SPEC-18); `deploy/smoke-test.sh --live` then passed all 17 checks again.
 
 The service runs on the key project's unpaid quota. The
 [Gemini API Additional Terms](https://ai.google.dev/gemini-api/terms) allow only Paid Services when an
