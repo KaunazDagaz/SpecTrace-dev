@@ -45,7 +45,7 @@ What was built and why, what confirms it and where it stops are in the
 - `run`, which does all of the above and replays offline from the committed cache;
 - the committed reference run in `runs/reference/`, which CI regenerates offline on Linux and
   Windows and compares byte for byte;
-- the naive baseline arm and the scoring of an externally produced answer, such as a chat
+- the simple-prompt baseline arm and the scoring of an externally produced answer, such as a chat
   transcript, through one parser and the same verifier, and `experiments/headline.md`: per arm and
   document, the share of claimed requirements whose quote cannot be located in the source. CI
   recomputes it offline and fails if it differs from the committed file;
@@ -59,8 +59,8 @@ What was built and why, what confirms it and where it stops are in the
   Every decision is appended to an append-only log and no pipeline file is ever rewritten. The same
   UI can start a run from an uploaded plain-text specification.
 - the container image of the review UI and its deployment to Cloud Run as a public demo that
-  replays cached documents and runs new ones live, with the key read from Secret Manager and never
-  in the repository, the image or CI (see [Deployment](#deployment)). CI builds the image and
+  replays the cached corpus documents offline, with no key; from 29 September to 7 October 2026 it
+  also ran new documents live (see [Deployment](#deployment)). CI builds the image and
   smoke-tests it offline, with no key, on every push. It runs at https://spectrace-5zrm6uxcja-lz.a.run.app.
 
 The gold standard itself is annotated by hand.
@@ -133,7 +133,7 @@ does or does not have a proposed case.
 The experiment, all offline except the first command without `--offline`:
 
 ```
-# the naive baseline: one prompt, the whole document, no schema, scored by the same verifier
+# the simple prompt, the baseline arm: one prompt, the whole document, no schema, scored by the same verifier
 dotnet run --project src/SpecTrace.Cli -- run --document corpus/rfc6902.txt --arm baseline --offline
 
 # score an answer captured by hand from a chat interface (front matter + the answer, unchanged);
@@ -322,45 +322,51 @@ Known limitations of the review UI:
 
 ## Deployment
 
-The review UI runs publicly on Google Cloud Run as a demo that calls a model. A document whose model
-calls are in the committed cache replays from it without a call. Any other document a visitor uploads
-runs live, on Gemini's free tier, through the author's API key, which the service reads from Secret
-Manager. The key is never in this repository, the image or CI.
+The review UI runs publicly on Google Cloud Run as an offline demo. A document whose model calls are
+in the committed cache replays from it, and any other upload ends with a cache-miss message: the
+service calls no model and holds no key. From 29 September to 7 October 2026 it ran a document not
+in the cache live, on Gemini's free tier, through the author's API key, which it read from Secret
+Manager. The key was never in this repository, the image or CI.
 
 | | |
 |---|---|
-| Live URL | https://spectrace-5zrm6uxcja-lz.a.run.app, also served at https://spectrace-38594812553.europe-north1.run.app |
+| Public URL | https://spectrace-5zrm6uxcja-lz.a.run.app, also served at https://spectrace-38594812553.europe-north1.run.app |
 | Deployment project | `spectrace-deploy`. Billing enabled, used only for Cloud Run, Cloud Build, Artifact Registry and Secret Manager. Budget alert: set, as the student confirmed on 1 October 2026; its amount and thresholds are not recorded here |
 | Key project | `gen-lang-client-0785466808`. No billing; the Gemini API key was made here in AI Studio, so every call on it is on this project's free tier. Never deployed to |
 | Region | `europe-north1` (Hamina, Finland): the Tier 1 Cloud Run region nearest to Lithuania, marked low CO2 |
-| Service | `spectrace`: public without sign-in, 0 to 1 instances, instance-based billing so a live run keeps its CPU after the upload request returns. Its configuration holds exactly `SPECTRACE_OFFLINE=0` and `GEMINI_API_KEY` as a reference to a pinned version of the secret `gemini-api-key` |
+| Service | `spectrace`: public without sign-in, 0 to 1 instances, request-based billing. Since 7 October 2026 its configuration holds no environment variable and no secret, so the image's own `SPECTRACE_OFFLINE=1` applies. From 29 September to 7 October 2026 it held exactly `SPECTRACE_OFFLINE=0` and `GEMINI_API_KEY` as a reference to a pinned version of the secret `gemini-api-key`, with instance-based billing so that a live run kept its CPU after the upload request returned |
 
 The two projects are kept apart on purpose. Enabling billing on a Google Cloud project removes the
 Gemini free tier on that project, and every call then bills from the first token. Cloud Run needs
 billing, so the service runs in a project that never issues a key, and the key is issued by a
 project that has no billing. A copy of that key is kept in Secret Manager in the deployment project,
-because that is where Cloud Run reads it; calls are still counted against the key's own project, on
-its free tier. `deploy/deploy.sh` stops before deploying anything if billing is enabled on the key
-project. Never create a Gemini key in `spectrace-deploy`: calls on it would be billed from the first
-token.
+where Cloud Run read it while the service ran live; its calls were still counted against the key's
+own project, on its free tier. The copy stays there, referenced by nothing, until the teardown.
+`deploy/deploy.sh` stops before deploying anything if billing is enabled on the key project. Never
+create a Gemini key in `spectrace-deploy`: calls on it would be billed from the first token.
 
 First deployed offline on 29 September 2026 as revision `spectrace-00001-zzp`, carrying the committed
 reference review of 5 decisions. `deploy/deploy.sh` confirmed that billing is disabled on the key
 project and enabled on the deployment project, and that the service configuration held no
-environment variable and no secret. `deploy/smoke-test.sh` against the live URL then passed all 18
+environment variable and no secret. `deploy/smoke-test.sh` against the public URL then passed all 18
 checks. The service switched to live runs later the same day, once the key had been stored again
 without the terminal's paste escape codes (PR #17). On 1 October 2026, `deploy/smoke-test.sh --live`
-against the live URL passed all 17 checks. Redeployed on 3 October 2026 from `43d8e63`, which carries the full
+against the public URL passed all 17 checks. Redeployed on 3 October 2026 from `43d8e63`, which carries the full
 reference review of 32 decisions (SPEC-18); `deploy/smoke-test.sh --live` then passed all 17 checks again.
+On 7 October 2026, at the supervisor's request, the student switched the service back to offline with the
+kill switch, without a rebuild. It then served revision `spectrace-00008-bhz`, and `deploy/smoke-test.sh`
+against the public URL, without `--live`, passed all 18 checks.
 
-The service runs on the key project's unpaid quota. The
+While it ran live, the service ran on the key project's unpaid quota. The
 [Gemini API Additional Terms](https://ai.google.dev/gemini-api/terms) allow only Paid Services when an
 API client is available to users in the European Economic Area, Switzerland or the United Kingdom, so
-on their text the service runs against that restriction. The student decided on 1 October 2026 to keep
-it live, to show the system working on new documents, and accepts that risk: see the
+on their text the service ran against that restriction. The student decided on 1 October 2026 to keep
+it live, to show the system working on new documents, and accepted that risk: see the
 [decision of 1 October 2026](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/research/decisions.md#1-october-2026--the-public-demo-stays-live-on-unpaid-quota-against-the-gemini-api-use-restriction).
-The kill switch under [Deploy, redeploy and check](#deploy-redeploy-and-check) turns it offline without
-a rebuild.
+On 7 October 2026 the supervisor asked for the service to replay cached results only before the defense,
+and the student turned it offline with the kill switch under
+[Deploy, redeploy and check](#deploy-redeploy-and-check): see the
+[decision of 7 October 2026](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/research/decisions.md#7-october-2026--the-public-demo-returns-to-offline-at-the-supervisors-request).
 
 ### What the public service does, and what it does not
 
@@ -370,25 +376,29 @@ It does:
   in its source context with its test cases and the decisions logged on them, and the reviewed
   matrix with its Markdown and CSV export;
 - replay a corpus document from the committed cache as a visitor's own run, which the visitor can
-  review like any other. RFC 6902 replays to the reference run's artifacts byte for byte;
-- run a new document live: one plain-text file of at most 64 KiB, one run at a time, at most ten
-  model requests a minute. The run is verified and reviewed exactly as a local one is.
+  review like any other. RFC 6902 replays to the reference run's artifacts byte for byte.
 
 It does not:
 
+- run a new document. An upload that is not in the committed cache ends with a cache-miss message,
+  never a model call; a new document runs live only locally, with a key of one's own (see
+  [Review UI](#review-ui)). From 29 September to 7 October 2026 the service ran one plain-text file
+  of at most 64 KiB live, one run at a time, at most ten model requests a minute;
 - accept a decision on the reference run. The server refuses one with 403 and logs nothing, whether
   it comes from the page or is sent by hand;
-- keep anything. Runs, decisions and the cache entries of live runs made on the service live only in
-  that instance and are lost when it stops: when it scales to zero after a quiet spell, and on every
-  redeploy. A live run made there cannot be replayed from this repository, so it is a demonstration,
-  never evidence; the committed results all come from local runs;
+- keep anything. Runs and decisions made on the service live only in that instance and are lost
+  when it stops: when it scales to zero after a quiet spell, and on every redeploy. The cache
+  entries of the live runs made there were lost the same way, so those runs cannot be replayed
+  from this repository: they were demonstrations, never evidence. The committed results all come
+  from local runs;
 - tell reviewers or uploaders apart. There are no accounts, and a reviewer's name is self-declared;
-- protect the daily quota or the uploads. Every visitor shares the key's one daily request quota,
-  and one large document can use about a quarter of it. Anything uploaded is sent to Gemini's free
-  tier through the author's key. The author is in the European Economic Area, so under the Gemini API
-  terms Google does not use it to improve its products, and logs it for a limited period
-  ([privacy and safety](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/docs/privacy-safety.md)).
-  The banner and the form ask for public specifications only; nothing enforces it;
+- check what is uploaded. The banner and the form ask for public specifications only; nothing
+  enforces it. Offline, nothing uploaded leaves the instance. While the service ran live, every
+  visitor shared the key's one daily request quota, and an upload not in the cache was sent to
+  Gemini's free tier through the author's key. The author is in the European Economic Area, so
+  under the Gemini API terms Google did not use it to improve its products, and logged it for a
+  limited period
+  ([privacy and safety](https://github.com/KaunazDagaz/SpecTrace-docs/blob/main/docs/privacy-safety.md));
 - promise exactly one instance at every moment. The service is capped at one, but Cloud Run may
   briefly exceed the cap, for example during a traffic spike; two instances would not share runs.
 
@@ -403,8 +413,9 @@ reference review log, `experiments/review/{runId}.reviews.jsonl`, placed where t
 data is owned by root, so the app can write only under `runs/`. `.dockerignore` is an allowlist:
 nothing else reaches the build, and `.env` files and `bin/` and `obj/` output are excluded even
 inside it. The image switches on `SPECTRACE_PUBLIC_DEMO=1` and, by default, `SPECTRACE_OFFLINE=1`
-itself. That offline image is what CI tests; the deployed service is the same image with offline
-mode turned off and the key added, both in its configuration. A run made in the container records
+itself. That offline image is what CI tests, and since 7 October 2026 the deployed service runs it
+as it is. From 29 September to 7 October 2026 the service ran the same image with offline mode
+turned off and the key added, both in its configuration. A run made in the container records
 `git_sha` as `unknown`, because the build has no `.git`.
 
 To try the image locally, build it from a clean clone, since a working tree with untracked corpus or
@@ -423,6 +434,10 @@ the RFC 6902 run started through the form with `runs/reference/`, file by file. 
 anywhere.
 
 ### Deploy, redeploy and check
+
+Since 7 October 2026 the service is offline, and is meant to stay offline until the teardown. Do not
+run `deploy/deploy.sh` while that holds: it always deploys live, setting `SPECTRACE_OFFLINE=0` and the
+key's secret reference. The steps below record how the service was deployed live.
 
 The student deploys by hand from Cloud Shell, in a clone of this repository at the commit to deploy;
 no Google credential is ever stored in this repository or in CI:
@@ -476,8 +491,7 @@ which is how CI runs it against the image. With `--live` it expects a live serve
 proves the key works with one small live run, about two requests from the daily quota; running it
 again on the same instance reuses that run.
 
-To switch the service back to offline at once, without a rebuild, for example if the quota is being
-used up:
+To switch the service back to offline at once, without a rebuild, as on 7 October 2026:
 
 ```
 gcloud run services update spectrace --project spectrace-deploy --region europe-north1 --remove-env-vars SPECTRACE_OFFLINE --remove-secrets GEMINI_API_KEY --cpu-throttling
@@ -486,7 +500,7 @@ gcloud run services update spectrace --project spectrace-deploy --region europe-
 The image's own `SPECTRACE_OFFLINE=1` then applies again. Deleting or restricting the key in AI Studio
 stops live runs as well, with an error on the run page. Do not run `deploy/deploy.sh` while the service
 is meant to stay offline: it always deploys live, setting `SPECTRACE_OFFLINE=0` and the key's secret
-reference.
+reference. After the switch, `deploy/smoke-test.sh` without `--live` checks the offline service.
 
 On a new project the first build can fail with `PERMISSION_DENIED` on the source bucket, and the
 first revision with the key can fail on the secret, because a new grant takes a few minutes to
@@ -526,7 +540,7 @@ tests/SpecTrace.Pipeline.Tests/   verification, invariants, offline end-to-end r
                                   the review log and the web UI, hosted in-process
 cache/                     committed LLM response cache
 runs/reference/            committed reference run; every other run under runs/ is ignored
-Dockerfile, .dockerignore  the image of the review UI, offline by default; Cloud Run serves it live as the public demo
+Dockerfile, .dockerignore  the image of the review UI, offline by default; Cloud Run serves it offline as the public demo
 deploy/                    deploy.sh, run by hand from Cloud Shell, and smoke-test.sh, run by CI and by hand
 ```
 
@@ -545,9 +559,10 @@ manifest check on its own would pass while the project file declared the depende
 - API keys, when a live call is made, come from the Google Cloud project that has **no** billing
   enabled — separate from the project used for deployment, because enabling billing removes the
   Gemini free tier on that project.
-- The deployed service reads the key from Secret Manager in the deployment project, as a reference to
-  a pinned secret version; the key is never in the image, a build argument, a plain variable, this
-  repository or CI. CI builds and tests the image offline, with no key and no secret, and never deploys.
+- The deployed service holds no key since 7 October 2026. While it ran live, it read the key from
+  Secret Manager in the deployment project, as a reference to a pinned secret version; the key was
+  never in the image, a build argument, a plain variable, this repository or CI. CI builds and tests
+  the image offline, with no key and no secret, and never deploys.
 
 ## Scope
 
